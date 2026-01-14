@@ -1,0 +1,87 @@
+#+title: CAS CS 320: Concepts of Programming Languages
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="style.css" />
+#+OPTIONS: html-style:nil H:1 toc:nil num:nil
+CAS CS 320 is a course /about/ programming languages, particularly the
+*design* and *implementation* of programming languages.  In this
+course, we take up the programming language as an /object of formal
+study/.  See the course manual and the schedule below for more
+details.
+* Links
++ Course Manual
++ Course Repository
++ [[https://piazza.com/class/mkbhaaxs6qo2vd/][Piazza]]
++ [[https://www.gradescope.com/courses/1222812][Gradescope]] (V44GKB)
++ [[https://nmmull.github.io/stdlib320/stdlib320/Stdlib320/index.html][Course Standard Library]]
+* Schedule
+|------+---------------------------------------------+----------------------------------|
+| Date | Topic                                       | Notes                            |
+|------+---------------------------------------------+----------------------------------|
+| 1/20 | Introducing OCaml                           | Read the course manual           |
+| 1/22 | Recursion and Lists                         | Assignment 1 (A1) out            |
+|------+---------------------------------------------+----------------------------------|
+| 1/26 | Lab 1: OCaml Exercises                      |                                  |
+| 1/27 | Polymorphism                                |                                  |
+| 1/29 | Designing Functions (Workshop)              | A2 out, A1 due                   |
+|------+---------------------------------------------+----------------------------------|
+| 2/2  | Lab 2: Recursion Best-ofs                   |                                  |
+| 2/3  | Inference Rules                             |                                  |
+| 2/5  | Derivations                                 | A3 out, A2 due                   |
+|------+---------------------------------------------+----------------------------------|
+| 2/9  | Lab 3: S-expressions                        |                                  |
+| 2/10 | Product Types and Records                   |                                  |
+| 2/12 | Algebraic Data Types                        | A4 out, A3 due                   |
+|------+---------------------------------------------+----------------------------------|
+| 2/16 | *No Lab*                                    | Presidents’ Day                  |
+| 2/17 | Lab 4: Quiz Review                          | Substitute Monday                |
+| 2/19 | *Quiz 1*                                    |                                  |
+|------+---------------------------------------------+----------------------------------|
+| 2/23 | Lab 5: ???                                  |                                  |
+| 2/24 | Higher-Order Programming                    |                                  |
+| 2/26 | Practical Functional Programming (Workshop) | A5 out, A4 due                   |
+|------+---------------------------------------------+----------------------------------|
+| 3/2  | Lab 6: ???                                  |                                  |
+| 3/3  | Lambda Calculus                             |                                  |
+| 3/5  | *Midterm Exam*                              |                                  |
+|------+---------------------------------------------+----------------------------------|
+| 3/9  | *No Lab*                                    | Spring recess                    |
+| 3/10 | *No Lecture*                                | Spring recess                    |
+| 3/12 | *No Lecture*                                | Spring recess                    |
+|------+---------------------------------------------+----------------------------------|
+| 3/16 | Lab 7: ???                                  |                                  |
+| 3/17 | Operational Semantics                       |                                  |
+| 3/19 | Lambda calculus                             | Mini-Project 1 (MP1) out, A5 due |
+|------+---------------------------------------------+----------------------------------|
+| 3/23 | Lab 8: ???                                  |                                  |
+| 3/24 | Variables, scopes, closures                 |                                  |
+| 3/26 | The Environment Model (Workshop)            | MP1 check-in due                 |
+|------+---------------------------------------------+----------------------------------|
+| 3/30 | Lab 9: ???                                  |                                  |
+| 3/31 | Simply typed lambda calculus                |                                  |
+| 4/2  | Progress and Preservation                   | MP2 out, MP1 due                 |
+|------+---------------------------------------------+----------------------------------|
+| 4/6  | Lab 10: ???                                 |                                  |
+| 4/7  | *Quiz 2*                                    |                                  |
+| 4/9  | Bi-Directional Type Checking                | MP2 check-in due                 |
+|------+---------------------------------------------+----------------------------------|
+| 4/13 | Lab 11: ???                                 |                                  |
+| 4/14 | Pattern Matching                            |                                  |
+| 4/16 | Exhaustiveness Checking                     | MP3 out, MP2 due                 |
+|------+---------------------------------------------+----------------------------------|
+| 4/20 | *No Lab*                                    | Patriots’ Day                    |
+| 4/21 | Hindley-Milner Light                        |                                  |
+| 4/22 | Lab 12: ???                                 |                                  |
+| 4/23 | Unification (Workshop)                      | MP3 check-in due                 |
+|------+---------------------------------------------+----------------------------------|
+| 4/27 | Lab 13: Final Exam Review                   |                                  |
+| 4/28 | Principal Types                             |                                  |
+| 4/30 | Bytecode Interpreters                       | MP3 due                          |
+|------+---------------------------------------------+----------------------------------|
+* Calendar
+#+begin_export html
+<iframe src="https://calendar.google.com/calendar/embed?height=600&wkst=1&ctz=America%2FNew_York&showPrint=0&showTitle=0&showTabs=0&showCalendars=0&showTz=0&mode=WEEK&src=Y18yYzczYjQzZjY2MTMyZjI1NjUyMGYxODNkNmNjYzVmMjI0ODg2Mjk2MzdmNGJhNTNhNWI0ZTVlY2U2YzRmNGVmQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20&color=%23e4c441" style="border-width:0" width="1000" height="600" frameborder="0" scrolling="no"></iframe>
+#+end_export
+* Course Staff
++ Instructor: [[https://nmmull.github.io][Nathan Mull]]
++ Teaching Fellow: Anthony DeRossi
++ Teaching Assistant: Vivian Tvedt
++ Course Assistants: Miranda Quimbar and Shiyun Yang

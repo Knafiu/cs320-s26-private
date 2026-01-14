@@ -1,0 +1,45 @@
+img {
+    width: 300px;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    margin: 30px auto;
+    max-width: 1000px;
+    line-height: 1.4;
+}
+
+h1 {
+    text-align: center;
+}
+
+a:link, a:visited {
+    color: #CC0000;
+    text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+.week {
+  border-top: 1px solid black;
+}
+
+th {
+  text-align: left;
+}
+
+td, th {
+    padding: 0.3em;
+}
+
+table {
+    width: 100%;
+    border-top: 1px solid black;
+    border-bottom: 1px solid black;
+    border-collapse: collapse;
+}
