@@ -18,7 +18,7 @@ details.
 | Date | Topic                                | Reading/Material | Notes                            |
 |------+--------------------------------------+------------------+----------------------------------|
 | 1/20 | Introducing OCaml                    | [[file:book/main.pdf][COPL 1]], OCP [[https://cs3110.github.io/textbook/chapters/intro/intro.html][1]], [[https://cs3110.github.io/textbook/chapters/basics/intro.html][2]] | Read the course manual           |
-| 1/22 | Recursion and Lists                  | OCP [[https://cs3110.github.io/textbook/chapters/data/lists.html][3.1]], [[https://cs3110.github.io/textbook/chapters/data/assoc_list.html][3.8]]     | Assignment 1 (A1) out            |
+| 1/22 | Recursion and Lists                  | OCP [[https://cs3110.github.io/textbook/chapters/data/lists.html][3.1]], [[https://cs3110.github.io/textbook/chapters/data/assoc_list.html][3.8]]     | [[file:assigns/assign1/assign1.org][Assignment 1 (A1)]] out            |
 |------+--------------------------------------+------------------+----------------------------------|
 | 1/26 | Lab 1: [[file:labs/lab01/lab01.org][Verifying your Set-up]]         |                  |                                  |
 | 1/27 | Designing Functions (Workshop)       |                  |                                  |

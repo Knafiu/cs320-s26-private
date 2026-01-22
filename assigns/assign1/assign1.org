@@ -1,0 +1,157 @@
+#+title: Assignment 1
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="../../style.css" />
+#+OPTIONS: html-style:nil H:3 toc:2
+#+HTML_LINK_HOME: ../../index.html
+This assignment is due on *Thursday 1/29 by 8:00PM*.  You should put
+all of your solutions in a file called ~assign1/lib/assign1.ml~. See
+the file ~test/test_assign1.ml~ for example behavior of each function.
+
+*Setting-up your system.* Before starting this assignment, follow the
+instructions from Lab 1 for setting up OCaml and your private course
+repository.
+
+* Programming
+** Integer Square Root
+Implement the function
+#+begin_src ocaml
+  val sqrt : int -> int
+#+end_src
+so that ~sqrt n~ is the /smallest/ integer ~k~ such that ~n <= k * k~.
+The behavior of the function is undefined if ~n~ is negative.
+
+** Integer Exponentiation
+Implement the function
+#+begin_src ocaml
+  val pow : int -> int -> int
+#+end_src
+so that ~pow m n~ is ~m~ to the power of ~n~.  The behavior of the
+function is undefined if ~m~ to the power of ~n~ is not an integer.
+
+** Split by Whitespace
+The primary objective of this assignment is to build an interpreter
+for arithmetic in reverse Polish notation (RPN) (i.e., a calculator).
+This means we need to split an expression─provided as a string─into
+its whitespace-separated parts, e.g., the following assertions should
+hold.
+
+#+begin_src ocaml
+  let _ = assert
+    (split_on_ws "1 23 + -94  *"
+     = ["1"; "23"; "+"; "-94"; "*"])
+  let _ = assert
+    (split_on_ws "  foo    bar  \n\n   baz   "
+     = ["foo"; "bar"; "baz"])
+#+end_src
+
+To make this easier, you can working with strings as lists of
+characters, e.g., the following assertions should hold.
+
+#+begin_src ocaml
+  let _ = assert
+    (split_on_ws_helper ['1'; ' '; '2'; '3'; ' '; '+'; ' '; '-'; '9'; '4'; ' '; ' '; '*']
+     = [['1']; ['2'; '3']; ['+']; ['-'; '9'; '4']; ['*']])
+  let _ = assert
+    (split_on_ws_helper ['f'; 'o'; 'o'; ' '; '\n'; 'b'; 'a'; 'z'; ' '; ' ']
+     = [['f'; 'o'; 'o']; ['b'; 'a'; 'z']])
+#+end_src
+
+Implement the function
+#+begin_src ocaml
+  val split_on_ws : string -> string list
+#+end_src
+So that ~split_on_ws s~ is the list of contiguous non-whitespace
+substrings of ~s~, in the order in which they appear, as in the above
+examples.  The starter code includes a small skeleton based on the
+above discussion, using the functions ~explode~ and ~implode~ to
+convert between strings and character lists.  /Note:/ We will not test
+~split_on_ws_helper~ directly.
+
+*Challenge worth nothing:* Despite the above, it's bad practice to
+work with strings as lists of characters.  Implement ~split_on_ws~
+without ~explode~ and ~implode~, instead by making use of the function
+~String.sub~.
+
+** RPN calculator
+One of the simplest programming languages is arithmetic.  There are
+several *syntaxes* for arithmetic; in this assignment we'll be using
+/reverse Polish notation/ (RPN).  In reverse Polish notation,
+arithmetic operators appear /after/ their arguments.  This has the
+benefit of not requiring parentheses, which makes RPN expressions
+easier to parse and evaluate.  We further require that all numbers and
+operators that appear in an RPN expression are separated by
+whitespace.  The following table contains translations of arithmetic
+expressions in standard infix notation and in RPN.
+
+|----------------------------+------------------------|
+| ~(1 + 2) + 3~              | ~1 2 + 3 +~            |
+| ~-1 + (2 + 3)~             | ~-1 2 3 + +~           |
+| ~sqrt 2 - (3 mod (4 * 5))~ | ~2 sqrt 3 4 5 * mod -~ |
+| ~1 / 2 * (3 ^ 4)~          | ~1 2 / 3 4 ^ *~        |
+|----------------------------+------------------------|
+
+Formally, a RPN expression is a sequence of symbols (which we will
+take to be ~strings~ in this assignment) that can be any of the
+following:
+
++ the string representation of an integer;
++ an operator of the form ~+~, ~-~, ~*~, ~/~, ~mod~, ~sqrt~, or ~^~.
+
+The *type system* of arithmetic is simple and requires no
+implementation: everything is an ~int~.  All operators operate ~int~'s
+and evaluate to ~int~ values.
+
+The *semantics* of arithmetic in RPN is most easily described in terms
+of a /stack/ (i.e., an ~int list~). Given an RPN arithmetic expression
+$e$, and a stack $S$, the following operations are done from left to
+right:
+
++ the string representation of an integer $n$ in $e$ pushes $n$ onto
+  $S$ (the function ~int_of_string~ may be useful);
++ an operator─its standard interpretation─is applied to the top one or
+  two elements of $S$, depending on how many arguments the operator
+  expects.
+
+This is best understood by example.  The following is a walk-through
+of how the stack is updated as each part of an RPN expression is
+processed during evaluation.
+
+#+begin_src text
+  Stack                     Expression
+  ─────                     ──────────
+  []                        -1 2 3 - + 4 *
+  (-1) :: []                2 3 - + 4 *
+  2 :: (-1) :: []           3 - + 4 *
+  3 :: 2 :: (-1) :: []      - + 4 *
+  (-1) :: (-1) :: []        + 4 *
+  (-2) :: []                4 *
+  4 :: (-2) :: []           *
+  -8 :: []
+#+end_src
+
+Implement the function
+#+begin_src ocaml
+  val eval : int list -> string list -> int list
+#+end_src
+so that ~eval stack expr~ is the result of evaluating ~expr~ with the
+starting ~stack~ according to the above description, e.g., the
+following assertions hold.
+#+begin_src ocaml
+  let _ = assert (eval [1; 2; 3] ["-1"] = [-1; 1; 2; 3])
+  let _ = assert (eval [1; 2; 3] ["-1"; "+"] = [0; 2; 3])
+  let _ = assert (eval [] ["-1"; "2"; "3"; "-"; "+"; "4"; "*"] = [-8])
+  let _ = assert (eval [1; 2; 3] ["-1"; "2"; "3"; "-"; "+"; "4"; "*"] = [-8; 1; 2; 3])
+#+end_src
+You should use your implementations of ~sqrt~ and ~pow~ for the
+operators ~sqrt~ and ~^~ respectively.  The behavior of the function
+is undefined if ~expr~ is not well-formed or if it is not possible to
+evaluate with respect to ~stack~.  This means you don't need to worry
+about handling syntax errors (e.g., you won't be given the expression
+~["asdf"; "2"; "3"]~ or evaluation errors (e.g., you won't be given
+the expression ~["-1"; "+"]~ and the stack ~[]~).
+
+The function ~interp~ puts all the pieces of this assignment together.
+If you've done everything correctly, you should be able to run ~dune
+exec assign1~ to open a REPL for your implementation of arithmetic in
+RPN.  You should also be able to put an expression in a file and pass
+it as a command line argument the interpreter to run it, e.g., ~dune
+exec assign1 example.rpn~.

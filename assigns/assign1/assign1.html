@@ -1,0 +1,311 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<!-- 2026-01-22 Thu 18:21 -->
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Assignment 1</title>
+<meta name="author" content="Nathan" />
+<meta name="generator" content="Org Mode" />
+<link rel="stylesheet" type="text/css" href="../../style.css" />
+<script>
+  window.MathJax = {
+    tex: {
+      ams: {
+        multlineWidth: '85%'
+      },
+      tags: 'ams',
+      tagSide: 'right',
+      tagIndent: '.8em'
+    },
+    chtml: {
+      scale: 1.0,
+      displayAlign: 'center',
+      displayIndent: '0em'
+    },
+    svg: {
+      scale: 1.0,
+      displayAlign: 'center',
+      displayIndent: '0em'
+    },
+    output: {
+      font: 'mathjax-modern',
+      displayOverflow: 'overflow'
+    }
+  };
+</script>
+
+<script
+  id="MathJax-script"
+  async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
+</script>
+</head>
+<body>
+<div id="org-div-home-and-up">[<a href="../../index.html">back</a>]</div><div id="content" class="content">
+<h1 class="title">Assignment 1</h1>
+<div id="table-of-contents" role="doc-toc">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents" role="doc-toc">
+<ul>
+<li><a href="#org129a029">1. Programming</a>
+<ul>
+<li><a href="#orgb4e02fe">1.1. Integer Square Root</a></li>
+<li><a href="#orgbb181d0">1.2. Integer Exponentiation</a></li>
+<li><a href="#org2cdca6f">1.3. Split by Whitespace</a></li>
+<li><a href="#orgb161fc3">1.4. RPN calculator</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<p>
+This assignment is due on <b>Thursday 1/29 by 8:00PM</b>.  You should put
+all of your solutions in a file called <code>assign1/lib/assign1.ml</code>. See
+the file <code>test/test_assign1.ml</code> for example behavior of each function.
+</p>
+
+<p>
+<b>Setting-up your system.</b> Before starting this assignment, follow the
+instructions from Lab 1 for setting up OCaml and your private course
+repository.
+</p>
+<div id="outline-container-org129a029" class="outline-2">
+<h2 id="org129a029"><span class="section-number-2">1.</span> Programming</h2>
+<div class="outline-text-2" id="text-1">
+</div>
+<div id="outline-container-orgb4e02fe" class="outline-3">
+<h3 id="orgb4e02fe"><span class="section-number-3">1.1.</span> Integer Square Root</h3>
+<div class="outline-text-3" id="text-1-1">
+<p>
+Implement the function
+</p>
+<div class="org-src-container">
+<pre class="src src-ocaml"><span style="color: #000000; font-weight: bold;">val</span> <span style="color: #0000ff;">sqrt</span> : int -&gt; int
+</pre>
+</div>
+<p>
+so that <code>sqrt n</code> is the <i>smallest</i> integer <code>k</code> such that <code>n &lt;= k * k</code>.
+The behavior of the function is undefined if <code>n</code> is negative.
+</p>
+</div>
+</div>
+<div id="outline-container-orgbb181d0" class="outline-3">
+<h3 id="orgbb181d0"><span class="section-number-3">1.2.</span> Integer Exponentiation</h3>
+<div class="outline-text-3" id="text-1-2">
+<p>
+Implement the function
+</p>
+<div class="org-src-container">
+<pre class="src src-ocaml"><span style="color: #000000; font-weight: bold;">val</span> <span style="color: #0000ff;">pow</span> : int -&gt; int -&gt; int
+</pre>
+</div>
+<p>
+so that <code>pow m n</code> is <code>m</code> to the power of <code>n</code>.  The behavior of the
+function is undefined if <code>m</code> to the power of <code>n</code> is not an integer.
+</p>
+</div>
+</div>
+<div id="outline-container-org2cdca6f" class="outline-3">
+<h3 id="org2cdca6f"><span class="section-number-3">1.3.</span> Split by Whitespace</h3>
+<div class="outline-text-3" id="text-1-3">
+<p>
+The primary objective of this assignment is to build an interpreter
+for arithmetic in reverse Polish notation (RPN) (i.e., a calculator).
+This means we need to split an expression─provided as a string─into
+its whitespace-separated parts, e.g., the following assertions should
+hold.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ocaml"><span style="color: #000000; font-weight: bold;">let</span> <span style="color: #a0522d;">_</span> = <span style="color: #a020f0;">assert</span>
+  (split_on_ws <span style="color: #8b2252;">"1 23 + -94  *"</span>
+   = [<span style="color: #8b2252;">"1"</span>; <span style="color: #8b2252;">"23"</span>; <span style="color: #8b2252;">"+"</span>; <span style="color: #8b2252;">"-94"</span>; <span style="color: #8b2252;">"*"</span>])
+<span style="color: #000000; font-weight: bold;">let</span> <span style="color: #a0522d;">_</span> = <span style="color: #a020f0;">assert</span>
+  (split_on_ws <span style="color: #8b2252;">"  foo    bar  \n\n   baz   "</span>
+   = [<span style="color: #8b2252;">"foo"</span>; <span style="color: #8b2252;">"bar"</span>; <span style="color: #8b2252;">"baz"</span>])
+</pre>
+</div>
+
+<p>
+To make this easier, you can working with strings as lists of
+characters, e.g., the following assertions should hold.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-ocaml"><span style="color: #000000; font-weight: bold;">let</span> <span style="color: #a0522d;">_</span> = <span style="color: #a020f0;">assert</span>
+  (split_on_ws_helper [<span style="color: #8b2252;">'1'</span>; <span style="color: #8b2252;">' '</span>; <span style="color: #8b2252;">'2'</span>; <span style="color: #8b2252;">'3'</span>; <span style="color: #8b2252;">' '</span>; <span style="color: #8b2252;">'+'</span>; <span style="color: #8b2252;">' '</span>; <span style="color: #8b2252;">'-'</span>; <span style="color: #8b2252;">'9'</span>; <span style="color: #8b2252;">'4'</span>; <span style="color: #8b2252;">' '</span>; <span style="color: #8b2252;">' '</span>; <span style="color: #8b2252;">'*'</span>]
+   = [[<span style="color: #8b2252;">'1'</span>]; [<span style="color: #8b2252;">'2'</span>; <span style="color: #8b2252;">'3'</span>]; [<span style="color: #8b2252;">'+'</span>]; [<span style="color: #8b2252;">'-'</span>; <span style="color: #8b2252;">'9'</span>; <span style="color: #8b2252;">'4'</span>]; [<span style="color: #8b2252;">'*'</span>]])
+<span style="color: #000000; font-weight: bold;">let</span> <span style="color: #a0522d;">_</span> = <span style="color: #a020f0;">assert</span>
+  (split_on_ws_helper [<span style="color: #8b2252;">'f'</span>; <span style="color: #8b2252;">'o'</span>; <span style="color: #8b2252;">'o'</span>; <span style="color: #8b2252;">' '</span>; <span style="color: #8b2252;">'\n'</span>; <span style="color: #8b2252;">'b'</span>; <span style="color: #8b2252;">'a'</span>; <span style="color: #8b2252;">'z'</span>; <span style="color: #8b2252;">' '</span>; <span style="color: #8b2252;">' '</span>]
+   = [[<span style="color: #8b2252;">'f'</span>; <span style="color: #8b2252;">'o'</span>; <span style="color: #8b2252;">'o'</span>]; [<span style="color: #8b2252;">'b'</span>; <span style="color: #8b2252;">'a'</span>; <span style="color: #8b2252;">'z'</span>]])
+</pre>
+</div>
+
+<p>
+Implement the function
+</p>
+<div class="org-src-container">
+<pre class="src src-ocaml"><span style="color: #000000; font-weight: bold;">val</span> <span style="color: #0000ff;">split_on_ws</span> : string -&gt; string list
+</pre>
+</div>
+<p>
+So that <code>split_on_ws s</code> is the list of contiguous non-whitespace
+substrings of <code>s</code>, in the order in which they appear, as in the above
+examples.  The starter code includes a small skeleton based on the
+above discussion, using the functions <code>explode</code> and <code>implode</code> to
+convert between strings and character lists.  <i>Note:</i> We will not test
+<code>split_on_ws_helper</code> directly.
+</p>
+
+<p>
+<b>Challenge worth nothing:</b> Despite the above, it's bad practice to
+work with strings as lists of characters.  Implement <code>split_on_ws</code>
+without <code>explode</code> and <code>implode</code>, instead by making use of the function
+<code>String.sub</code>.
+</p>
+</div>
+</div>
+<div id="outline-container-orgb161fc3" class="outline-3">
+<h3 id="orgb161fc3"><span class="section-number-3">1.4.</span> RPN calculator</h3>
+<div class="outline-text-3" id="text-1-4">
+<p>
+One of the simplest programming languages is arithmetic.  There are
+several <b>syntaxes</b> for arithmetic; in this assignment we'll be using
+<i>reverse Polish notation</i> (RPN).  In reverse Polish notation,
+arithmetic operators appear <i>after</i> their arguments.  This has the
+benefit of not requiring parentheses, which makes RPN expressions
+easier to parse and evaluate.  We further require that all numbers and
+operators that appear in an RPN expression are separated by
+whitespace.  The following table contains translations of arithmetic
+expressions in standard infix notation and in RPN.
+</p>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<tbody>
+<tr>
+<td class="org-left"><code>(1 + 2) + 3</code></td>
+<td class="org-left"><code>1 2 + 3 +</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>-1 + (2 + 3)</code></td>
+<td class="org-left"><code>-1 2 3 + +</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>sqrt 2 - (3 mod (4 * 5))</code></td>
+<td class="org-left"><code>2 sqrt 3 4 5 * mod -</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>1 / 2 * (3 ^ 4)</code></td>
+<td class="org-left"><code>1 2 / 3 4 ^ *</code></td>
+</tr>
+</tbody>
+</table>
+
+<p>
+Formally, a RPN expression is a sequence of symbols (which we will
+take to be <code>strings</code> in this assignment) that can be any of the
+following:
+</p>
+
+<ul class="org-ul">
+<li>the string representation of an integer;</li>
+<li>an operator of the form <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>mod</code>, <code>sqrt</code>, or <code>^</code>.</li>
+</ul>
+
+<p>
+The <b>type system</b> of arithmetic is simple and requires no
+implementation: everything is an <code>int</code>.  All operators operate <code>int</code>'s
+and evaluate to <code>int</code> values.
+</p>
+
+<p>
+The <b>semantics</b> of arithmetic in RPN is most easily described in terms
+of a <i>stack</i> (i.e., an <code>int list</code>). Given an RPN arithmetic expression
+\(e\), and a stack \(S\), the following operations are done from left to
+right:
+</p>
+
+<ul class="org-ul">
+<li>the string representation of an integer \(n\) in \(e\) pushes \(n\) onto
+\(S\) (the function <code>int_of_string</code> may be useful);</li>
+<li>an operator─its standard interpretation─is applied to the top one or
+two elements of \(S\), depending on how many arguments the operator
+expects.</li>
+</ul>
+
+<p>
+This is best understood by example.  The following is a walk-through
+of how the stack is updated as each part of an RPN expression is
+processed during evaluation.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-text">Stack                     Expression
+&#9472;&#9472;&#9472;&#9472;&#9472;                     &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
+[]                        -1 2 3 - + 4 *
+(-1) :: []                2 3 - + 4 *
+2 :: (-1) :: []           3 - + 4 *
+3 :: 2 :: (-1) :: []      - + 4 *
+(-1) :: (-1) :: []        + 4 *
+(-2) :: []                4 *
+4 :: (-2) :: []           *
+-8 :: []
+</pre>
+</div>
+
+<p>
+Implement the function
+</p>
+<div class="org-src-container">
+<pre class="src src-ocaml"><span style="color: #000000; font-weight: bold;">val</span> <span style="color: #0000ff;">eval</span> : int list -&gt; string list -&gt; int list
+</pre>
+</div>
+<p>
+so that <code>eval stack expr</code> is the result of evaluating <code>expr</code> with the
+starting <code>stack</code> according to the above description, e.g., the
+following assertions hold.
+</p>
+<div class="org-src-container">
+<pre class="src src-ocaml"><span style="color: #000000; font-weight: bold;">let</span> <span style="color: #a0522d;">_</span> = <span style="color: #a020f0;">assert</span> (eval [1; 2; 3] [<span style="color: #8b2252;">"-1"</span>] = [-1; 1; 2; 3])
+<span style="color: #000000; font-weight: bold;">let</span> <span style="color: #a0522d;">_</span> = <span style="color: #a020f0;">assert</span> (eval [1; 2; 3] [<span style="color: #8b2252;">"-1"</span>; <span style="color: #8b2252;">"+"</span>] = [0; 2; 3])
+<span style="color: #000000; font-weight: bold;">let</span> <span style="color: #a0522d;">_</span> = <span style="color: #a020f0;">assert</span> (eval <span style="color: #000000; background-color: #ffffff;">[]</span> [<span style="color: #8b2252;">"-1"</span>; <span style="color: #8b2252;">"2"</span>; <span style="color: #8b2252;">"3"</span>; <span style="color: #8b2252;">"-"</span>; <span style="color: #8b2252;">"+"</span>; <span style="color: #8b2252;">"4"</span>; <span style="color: #8b2252;">"*"</span>] = [-8])
+<span style="color: #000000; font-weight: bold;">let</span> <span style="color: #a0522d;">_</span> = <span style="color: #a020f0;">assert</span> (eval [1; 2; 3] [<span style="color: #8b2252;">"-1"</span>; <span style="color: #8b2252;">"2"</span>; <span style="color: #8b2252;">"3"</span>; <span style="color: #8b2252;">"-"</span>; <span style="color: #8b2252;">"+"</span>; <span style="color: #8b2252;">"4"</span>; <span style="color: #8b2252;">"*"</span>] = [-8; 1; 2; 3])
+</pre>
+</div>
+<p>
+You should use your implementations of <code>sqrt</code> and <code>pow</code> for the
+operators <code>sqrt</code> and <code>^</code> respectively.  The behavior of the function
+is undefined if <code>expr</code> is not well-formed or if it is not possible to
+evaluate with respect to <code>stack</code>.  This means you don't need to worry
+about handling syntax errors (e.g., you won't be given the expression
+<code>["asdf"; "2"; "3"]</code> or evaluation errors (e.g., you won't be given
+the expression <code>["-1"; "+"]</code> and the stack <code>[]</code>).
+</p>
+
+<p>
+The function <code>interp</code> puts all the pieces of this assignment together.
+If you've done everything correctly, you should be able to run <code>dune
+exec assign1</code> to open a REPL for your implementation of arithmetic in
+RPN.  You should also be able to put an expression in a file and pass
+it as a command line argument the interpreter to run it, e.g., <code>dune
+exec assign1 example.rpn</code>.
+</p>
+</div>
+</div>
+</div>
+</div>
+</body>
+</html>
