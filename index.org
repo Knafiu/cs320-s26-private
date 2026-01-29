@@ -22,7 +22,7 @@ details.
 |------+--------------------------------------+------------------+----------------------------------|
 | 1/26 | Lab 1: [[file:labs/lab01/lab01.org][Verifying your Set-up]]         |                  |                                  |
 | 1/27 | Designing Functions (Workshop)       |                  |                                  |
-| 1/29 | Polymorphism                         |                  | A2 out, A1 due                   |
+| 1/29 | Polymorphism                         |                  | [[file:assigns/assign2/assign2.org][A2]] out, A1 due                   |
 |------+--------------------------------------+------------------+----------------------------------|
 | 2/2  | Lab 2: More OCaml Practice           |                  |                                  |
 | 2/3  | Inference Rules                      |                  |                                  |
