@@ -10,15 +10,18 @@ let sqrt (n : int) : int = (* CHANGE _n to n! *)
 
 let pow (n : int) (k : int) : int = (* CHANGE _n to n and _k to k! *)
   if k < 0 then
-    0
+    (* Only bases +/-1 produce integers for negative exponents *)
+    if n = 1 then 1
+    else if n = -1 then
+      if k mod 2 = 0 then 1 else -1
+    else
+      0
   else
-    let rec help exp acc =
-      if exp = 0 then
-        acc
-      else
-        help (exp - 1) (acc * n)
+    let rec loop exp acc =
+      if exp = 0 then acc
+      else loop (exp - 1) (acc * n)
     in
-    help k 1
+    loop k 1
 
 
 let is_ws = function
