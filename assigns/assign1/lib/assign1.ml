@@ -9,6 +9,8 @@ let sqrt (n : int) : int = (* CHANGE _n to n! *)
 
 
 let pow (n : int) (k : int) : int = (* CHANGE _n to n and _k to k! *)
+  if n < 0 then
+      0
   let rec help n k acc = 
     if k = 0
     then acc
@@ -45,8 +47,7 @@ let implode_all (css : char list list) : string list =
   in loop [] css
 
 let split_on_ws_helper (_cs : char list) : char list list =
-    let isWhiteSpace c = c = ' ' || c = '\n'
-    in
+    
     let rec loop chars current result =
       match chars with
       | [] -> 
@@ -55,7 +56,7 @@ let split_on_ws_helper (_cs : char list) : char list list =
       else
          List.rev ((List.rev current) :: result)
       | x :: xs -> 
-        if isWhiteSpace x then
+        if is_ws x then
           if current = [] then
             loop xs [] result
           else
