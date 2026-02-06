@@ -35,8 +35,38 @@ let lex s =
         else assert false
   in go [] 0
 
-let eval _e = assert false (* TODO *)
+let eval e =
+  let rec parse_expr toks =
+    let (v, toks) = parse_term toks in
+    parse_expr_tail v toks
 
+  and parse_expr_tail acc toks =
+    match toks with
+    | "+" :: rest ->
+        let (v2, rest2) = parse_term rest in
+        parse_expr_tail (acc + v2) rest2
+    | "-" :: rest ->
+        let (v2, rest2) = parse_term rest in
+        parse_expr_tail (acc - v2) rest2
+    | _ ->
+        (acc, toks)
+
+  and parse_term toks =
+    let (v, toks) = parse_factor toks in
+    parse_term_tail v toks
+
+  and parse_term_tail acc toks =
+    match toks with
+    | "*" :: rest ->
+        let (v2, rest2) = parse_factor rest in
+        parse_term_tail (acc * v2) rest2
+    | "/" :: rest ->
+        let (v2, rest2) = parse_factor rest in
+        parse_term_tail (acc / v2) rest2
+    | _ ->
+        (acc, toks)
+
+  
 let interp (input : string) : int =
   match eval (lex input) with
   | output -> output
