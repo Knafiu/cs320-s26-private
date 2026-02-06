@@ -73,10 +73,10 @@ let eval e =
         n <> "*" && n <> "/" ->
         (int_of_string n, rest)
     | "(" :: rest ->
-        let (v, rest2) = parse_expr rest in
-        (match rest2 with
-         | ")" :: rest3 -> (v, rest3)
-         | _ -> failwith "missing )"
+    let (v, rest2) = parse_expr rest in
+    (match rest2 with
+     | ")" :: rest3 -> (v, rest3)
+     | _ -> failwith "missing )")
     | _ ->
         failwith "bad factor"
   in
