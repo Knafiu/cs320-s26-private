@@ -65,6 +65,26 @@ let eval e =
         parse_term_tail (acc / v2) rest2
     | _ ->
         (acc, toks)
+  and parse_factor toks =
+    match toks with
+    | n :: rest when
+        n <> "(" && n <> ")" &&
+        n <> "+" && n <> "-" &&
+        n <> "*" && n <> "/" ->
+        (int_of_string n, rest)
+    | "(" :: rest ->
+        let (v, rest2) = parse_expr rest in
+        (match rest2 with
+         | ")" :: rest3 -> (v, rest3)
+         | _ -> failwith "missing )"
+    | _ ->
+        failwith "bad factor"
+  in
+  let (v, rest) = parse_expr e in
+  match rest with
+  | [] -> v
+  | _ -> failwith "extra tokens"
+
 
   
 let interp (input : string) : int =
