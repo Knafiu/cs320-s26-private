@@ -177,9 +177,11 @@ determining the type of $e_1$ requires that $f$ appears in the
 context, since the definition of a recursive function can depend on
 the function itself.
 
-Provide the typing rule for recursive let statements (we'll call it *LetRec*),
-and use this to give a derivation of the following typing judgment.
+Provide the typing rule for recursive let statements (we'll call it
+*LetRec*), and use this to give a derivation of the following typing
+judgment.[fn::*Errata (2/10, 7:00AM):* The change to the given
+expression is in red given.]
 
 \[
-\{\} \vdash \texttt{let rec f = fun x -> f (x + 1) = 0 in f} : \texttt{int -> bool}
+\{\} \vdash \texttt{let rec f = fun x -> f (x + 1) = }\textcolor{red}{\texttt{false}}\texttt{ in f} : \texttt{int -> bool}
 \]
