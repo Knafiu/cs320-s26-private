@@ -87,11 +87,44 @@ let rec eval (env : (string * int) list) (expr : string list) : int =
           in
           pop_ops ops output
         else
-          (* number or variable *)
           to_rpn rest ops (t :: output)
+          in
+
+        let rpn = to_rpn expr [] [] in
+
+        let rec eval_rpn stack tokens =
+          match tokens with
+          | [] ->
+              (match stack with
+              | [v] -> v
+              | _ -> failwith "invalid expression")
+          | t :: rest ->
+              if is_op t then
+                match stack with
+                | b :: a :: stack' ->
+                    let result =
+                      match t with
+                      | "+" -> a + b
+                      | "-" -> a - b
+                      | "*" -> a * b
+                      | "/" -> a / b
+                      | _ -> failwith "unknown operator"
+                    in
+                    eval_rpn (result :: stack') rest
+                | _ -> failwith "not enough operands"
+              else
+                let value =
+                  if String.length t > 0 && is_digit t.[0] then
+                    int_of_string t
+                  else
+                    List.assoc t env
+                in
+                eval_rpn (value :: stack) rest
+        in
+        eval_rpn [] rpn
 
 let insert_uniq (k : 'k) (v : 'v) (r : ('k * 'v) list) : ('k * 'v) list =
-  assert false (* TODO *)
+  
 
 let interp (input : string) (env : (string * int) list) : int * (string * int) list =
   match lex input with
