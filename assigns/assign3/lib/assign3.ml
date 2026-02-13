@@ -46,7 +46,7 @@ let lex (s : string) : string list =
     in
     go [] 0
 
-let rec eval (env : (string * int) list) (expr : string list) : int =
+let  eval (env : (string * int) list) (expr : string list) : int =
    let precedence op =
     match op with
     | "+" | "-" -> 1
@@ -135,14 +135,11 @@ let insert_uniq (k : 'k) (v : 'v) (r : ('k * 'v) list) : ('k * 'v) list =
       let rec go acc lst =
       match lst with
       | [] ->
-          (* k wasn't found: add it *)
           (k, v) :: acc
       | (k', v') :: rest ->
           if k' = k then
-            (* k found: replace it, and keep the rest *)
-            List.rev_append acc ((k, v) :: rest)
+            List.rev acc @ ((k, v) :: rest)
           else
-            (* keep searching, building acc *)
             go ((k', v') :: acc) rest
     in
     go [] r
