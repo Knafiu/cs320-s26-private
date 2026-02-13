@@ -40,15 +40,23 @@ let lex (s : string) : string list =
         | c when is_upper c ->
             let j = read_while is_upper i i in
             let tok = String.sub s i (j - i) in
-            go (tok :: acc) j
+            go (tok ::cc) j
         | _ ->
-            (* Undefined behavior per spec; we can fail fast. *)
             failwith "lex: unexpected character"
     in
     go [] 0
 
 let rec eval (env : (string * int) list) (expr : string list) : int =
-  assert false (* TODO *)
+   let precedence op =
+    match op with
+    | "+" | "-" -> 1
+    | "*" | "/" -> 2
+    | _ -> 0
+  in
+
+  let is_op t =
+    t = "+" || t = "-" || t = "*" || t = "/"
+  
 
 let insert_uniq (k : 'k) (v : 'v) (r : ('k * 'v) list) : ('k * 'v) list =
   assert false (* TODO *)
