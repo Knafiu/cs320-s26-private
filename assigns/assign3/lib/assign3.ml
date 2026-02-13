@@ -40,7 +40,7 @@ let lex (s : string) : string list =
         | c when is_upper c ->
             let j = read_while is_upper i i in
             let tok = String.sub s i (j - i) in
-            go (tok ::cc) j
+            go (tok :: acc) j
         | _ ->
             failwith "lex: unexpected character"
     in
@@ -56,13 +56,20 @@ let rec eval (env : (string * int) list) (expr : string list) : int =
 
   let is_op t =
     t = "+" || t = "-" || t = "*" || t = "/"
-  
+  in
+  let is_int_token t =
+    let n = String.length t in
+    if n = 0 then false
+    else if t.[0] = '-' then n > 1 && is_digit t.[1]
+    else is_digit t.[0]
+  in
     let rec to_rpn tokens ops output =
     match tokens with
     | [] ->
         let rec drain ops output =
           match ops with
           | [] -> List.rev output
+          | "(" :: _ -> failwith "mismatched parentheses"
           | op :: rest -> drain rest (op :: output)
         in
         drain ops output
@@ -107,24 +114,38 @@ let rec eval (env : (string * int) list) (expr : string list) : int =
                       | "+" -> a + b
                       | "-" -> a - b
                       | "*" -> a * b
-                      | "/" -> a / b
+                      | "/" -> if b = 0 then failwith "division by zero" else a / b
                       | _ -> failwith "unknown operator"
                     in
                     eval_rpn (result :: stack') rest
                 | _ -> failwith "not enough operands"
               else
                 let value =
-                  if String.length t > 0 && is_digit t.[0] then
-                    int_of_string t
+                  if is_int_token t then int_of_string t
                   else
-                    List.assoc t env
+                    match List.assoc_opt t env with
+                    | Some v -> v
+                    | None -> failwith ("unbound variable: " ^ t)
                 in
                 eval_rpn (value :: stack) rest
         in
         eval_rpn [] rpn
 
 let insert_uniq (k : 'k) (v : 'v) (r : ('k * 'v) list) : ('k * 'v) list =
-  
+      let rec go acc lst =
+      match lst with
+      | [] ->
+          (* k wasn't found: add it *)
+          (k, v) :: acc
+      | (k', v') :: rest ->
+          if k' = k then
+            (* k found: replace it, and keep the rest *)
+            List.rev_append acc ((k, v) :: rest)
+          else
+            (* keep searching, building acc *)
+            go ((k', v') :: acc) rest
+    in
+    go [] l
 
 let interp (input : string) (env : (string * int) list) : int * (string * int) list =
   match lex input with
