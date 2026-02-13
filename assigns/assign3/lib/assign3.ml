@@ -31,8 +31,8 @@ let lex (s : string) : string list =
       else if is_ws s.[i] then go acc (i + 1)
       else
         match s.[i] with
-        | '(' | ')' | '+' | '-' | '*' | '/' | '=' as ch ->
-            go ((Char.escaped ch) :: acc) (i + 1)
+        | '(' | ')' | '+' | '-' | '*' | '/' | '=' ->
+          go ((String.sub s i 1) :: acc) (i + 1)
         | c when is_digit c ->
             let j = read_while is_digit i i in
             let tok = String.sub s i (j - i) in
@@ -145,7 +145,7 @@ let insert_uniq (k : 'k) (v : 'v) (r : ('k * 'v) list) : ('k * 'v) list =
             (* keep searching, building acc *)
             go ((k', v') :: acc) rest
     in
-    go [] l
+    go [] r
 
 let interp (input : string) (env : (string * int) list) : int * (string * int) list =
   match lex input with
