@@ -32,7 +32,7 @@ let lex (s : string) : string list =
       else
         match s.[i] with
         | '(' | ')' | '+' | '-' | '*' | '/' | '=' as ch ->
-            go ((String.make 1 ch) :: acc) (i + 1)
+            go ((Char.escaped ch) :: acc) (i + 1)
         | c when is_digit c ->
             let j = read_while is_digit i i in
             let tok = String.sub s i (j - i) in
