@@ -22,7 +22,30 @@ let all_upper x =
   in loop 0
 
 let lex (s : string) : string list =
-  assert false (* TODO *)
+    let n = String.length s in
+    let rec read_while pred i j =
+      if j < n && pred s.[j] then read_while pred i (j + 1) else j
+    in
+    let rec go acc i =
+      if i >= n then List.rev acc
+      else if is_ws s.[i] then go acc (i + 1)
+      else
+        match s.[i] with
+        | '(' | ')' | '+' | '-' | '*' | '/' | '=' as ch ->
+            go ((String.make 1 ch) :: acc) (i + 1)
+        | c when is_digit c ->
+            let j = read_while is_digit i i in
+            let tok = String.sub s i (j - i) in
+            go (tok :: acc) j
+        | c when is_upper c ->
+            let j = read_while is_upper i i in
+            let tok = String.sub s i (j - i) in
+            go (tok :: acc) j
+        | _ ->
+            (* Undefined behavior per spec; we can fail fast. *)
+            failwith "lex: unexpected character"
+    in
+    go [] 0
 
 let rec eval (env : (string * int) list) (expr : string list) : int =
   assert false (* TODO *)
