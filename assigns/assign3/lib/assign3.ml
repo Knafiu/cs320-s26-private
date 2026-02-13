@@ -57,6 +57,38 @@ let rec eval (env : (string * int) list) (expr : string list) : int =
   let is_op t =
     t = "+" || t = "-" || t = "*" || t = "/"
   
+    let rec to_rpn tokens ops output =
+    match tokens with
+    | [] ->
+        let rec drain ops output =
+          match ops with
+          | [] -> List.rev output
+          | op :: rest -> drain rest (op :: output)
+        in
+        drain ops output
+    | t :: rest ->
+        if t = "(" then
+          to_rpn rest (t :: ops) output
+        else if t = ")" then
+          let rec pop_until ops output =
+            match ops with
+            | [] -> failwith "mismatched parentheses"
+            | "(" :: ops' -> to_rpn rest ops' output
+            | op :: ops' -> pop_until ops' (op :: output)
+          in
+          pop_until ops output
+        else if is_op t then
+          let rec pop_ops ops output =
+            match ops with
+            | op :: ops'
+              when is_op op && precedence op >= precedence t ->
+                pop_ops ops' (op :: output)
+            | _ -> to_rpn rest (t :: ops) output
+          in
+          pop_ops ops output
+        else
+          (* number or variable *)
+          to_rpn rest ops (t :: output)
 
 let insert_uniq (k : 'k) (v : 'v) (r : ('k * 'v) list) : ('k * 'v) list =
   assert false (* TODO *)
