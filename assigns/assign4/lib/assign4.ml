@@ -5,6 +5,8 @@ let is_ws = function
 
 type token = Lpar | Rpar | Word of string
 
+let ( let* ) o f = match o with Some x -> f x | None -> None
+
 let tokens_of_string (s : string) : token list =
   let rec go acc i =
     if i >= String.length s
@@ -189,11 +191,32 @@ type ty_deriv =
     }
   | Hole
 
-let ty_deriv_of_sexpr_opt (_ : sexpr) : ty_deriv option =
-  assert false (* TODO *)
+let rec ty_deriv_of_sexpr_opt (s : sexpr) : ty_deriv option =
+  match s with
+  | Atom "???" -> Some Hole
+  | Atom _ -> None
+  | List xs -> (
+      match xs with
+      | expr_s :: ty_s :: rname_s :: prem_sxs ->
+        let* e = expr_of_sexpr_opt expr_s in
+        let* ty = ty_of_sexpr_opt ty_s in
+        let* rname = ty_rule_of_sexpr_opt rname_s in
+        let rec map_opt f = function
+          | [] -> Some []
+          | y :: ys ->
+            let* y' = f y in
+            let* ys' = map_opt f ys in
+            Some (y' :: ys')
+        in
+        let* prem_derivs = map_opt ty_deriv_of_sexpr_opt prem_sxs in
+        Some (Rule_app { prem_derivs; concl = { expr = e; ty }; rname })
+      | _ -> None
+    )
 
-let ty_deriv_of_string_opt (_ : string) : ty_deriv option =
-  assert false (* TODO *)
+let ty_deriv_of_string_opt (s : string) : ty_deriv option =
+  match sexpr_of_string_opt s with
+  | None -> None
+  | Some sx -> ty_deriv_of_sexpr_opt sx
 
 let string_of_ty_deriv (d : ty_deriv) : string =
   let rec go d =
