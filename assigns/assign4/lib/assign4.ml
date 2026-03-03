@@ -273,16 +273,103 @@ let string_of_ty_deriv (d : ty_deriv) : string =
   in
   String.concat "\n" lines
 
-let check_rule (_ : ty_rule) (_ : ty_jmt option list) (_ : ty_jmt) : bool =
-  assert false (* TODO *)
+let check_rule (r : ty_rule) (prems : ty_jmt option list) (concl : ty_jmt) : bool =
+  let prem_len_ok n = List.length prems = n in
+  let prem_expr_matches i expected_expr =
+    match List.nth_opt prems i with
+    | Some (Some j) -> j.expr = expected_expr
+    | Some None -> true
+    | None -> false
+  in
+  let prem_ty_is i expected_ty =
+    match List.nth_opt prems i with
+    | Some (Some j) -> j.ty = expected_ty
+    | Some None -> true
+    | None -> false
+  in
+  let prem_ty_opt i =
+    match List.nth_opt prems i with
+    | Some (Some j) -> Some j.ty
+    | _ -> None
+  in
+  match r with
+  | Int_lit ->
+    prem_len_ok 0
+    && (match concl.expr with Int _ -> concl.ty = IntT | _ -> false)
+
+  | Add_int ->
+    prem_len_ok 2
+    && (match concl.expr with
+        | Bop (Add, e1, e2) ->
+          concl.ty = IntT
+          && prem_expr_matches 0 e1 && prem_expr_matches 1 e2
+          && prem_ty_is 0 IntT && prem_ty_is 1 IntT
+        | _ -> false)
+
+  | Mul_int ->
+    prem_len_ok 2
+    && (match concl.expr with
+        | Bop (Mul, e1, e2) ->
+          concl.ty = IntT
+          && prem_expr_matches 0 e1 && prem_expr_matches 1 e2
+          && prem_ty_is 0 IntT && prem_ty_is 1 IntT
+        | _ -> false)
+
+  | Eq_rule ->
+    prem_len_ok 2
+    && (match concl.expr with
+        | Bop (Eq, e1, e2) ->
+          concl.ty = BoolT
+          && prem_expr_matches 0 e1 && prem_expr_matches 1 e2
+          && (match prem_ty_opt 0, prem_ty_opt 1 with
+              | Some t1, Some t2 -> t1 = t2
+              | _ -> true)
+        | _ -> false)
+
+  | If_rule ->
+    prem_len_ok 3
+    && (match concl.expr with
+        | If (e1, e2, e3) ->
+          prem_expr_matches 0 e1
+          && prem_expr_matches 1 e2
+          && prem_expr_matches 2 e3
+          && prem_ty_is 0 BoolT
+          && prem_ty_is 1 concl.ty
+          && prem_ty_is 2 concl.ty
+          && (match prem_ty_opt 1, prem_ty_opt 2 with
+              | Some t2, Some t3 -> t2 = t3
+              | _ -> true)
+        | _ -> false)
 
 type status =
   | Complete
   | Invalid
   | Partial
 
-let check_deriv (_ : ty_deriv) : status =
-  assert false (* TODO *)
+let check_deriv (d : ty_deriv) : status =
+  let rec go d =
+    match d with
+    | Hole -> (true, true)
+    | Rule_app ra ->
+      let prem_infos = List.map go ra.prem_derivs in
+      let has_hole = List.exists (fun (h, _) -> h) prem_infos in
+      let prems_valid = List.for_all (fun (_, v) -> v) prem_infos in
+      if not prems_valid then (has_hole, false)
+      else
+        let prem_jmts =
+          List.map
+            (function
+              | Hole -> None
+              | Rule_app d' -> Some d'.concl)
+            ra.prem_derivs
+        in
+        let this_ok = check_rule ra.rname prem_jmts ra.concl in
+        (has_hole, this_ok)
+  in
+  let (has_hole, valid) = go d in
+  if not valid then Invalid
+  else if has_hole then Partial
+  else Complete
 
 type value = BoolV of bool | IntV of int
 
