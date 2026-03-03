@@ -378,8 +378,29 @@ let string_of_value (v : value) : string =
   | BoolV b -> string_of_bool b
   | IntV n -> string_of_int n
 
-let value_of_expr (_ : expr) : value =
-  assert false (* TODO *)
+let rec value_of_expr (e : expr) : value =
+  match e with
+  | Int n -> IntV n
+  | Bop (Add, e1, e2) -> (
+      match value_of_expr e1, value_of_expr e2 with
+      | IntV a, IntV b -> IntV (a + b)
+      | _ -> assert false
+    )
+  | Bop (Mul, e1, e2) -> (
+      match value_of_expr e1, value_of_expr e2 with
+      | IntV a, IntV b -> IntV (a * b)
+      | _ -> assert false
+    )
+  | Bop (Eq, e1, e2) ->
+    let v1 = value_of_expr e1 in
+    let v2 = value_of_expr e2 in
+    BoolV (v1 = v2)
+  | If (c, t, f) -> (
+      match value_of_expr c with
+      | BoolV true -> value_of_expr t
+      | BoolV false -> value_of_expr f
+      | _ -> assert false
+    )
 
 type error = Parse_error | Invalid_deriv of ty_deriv
 
@@ -397,4 +418,22 @@ let interp (s : string) : (ty_deriv * value option, error) result  =
   )
   | None -> Error Parse_error
 
-let example_deriv : string = "" (* TODO *)
+let example_deriv : string =
+"((if (= (= 5 (+ 1 4)) (= 0 1)) (+ 2 3) (* (+ 4 5) 67)) int IF
+  ((= (= 5 (+ 1 4)) (= 0 1)) bool EQ
+    ((= 5 (+ 1 4)) bool EQ
+      (5 int INTLIT)
+      ((+ 1 4) int ADDINT
+        (1 int INTLIT)
+        (4 int INTLIT)))
+    ((= 0 1) bool EQ
+      (0 int INTLIT)
+      (1 int INTLIT)))
+  ((+ 2 3) int ADDINT
+    (2 int INTLIT)
+    (3 int INTLIT))
+  ((* (+ 4 5) 67) int MULINT
+    ((+ 4 5) int ADDINT
+      (4 int INTLIT)
+      (5 int INTLIT))
+    (67 int INTLIT)))"
