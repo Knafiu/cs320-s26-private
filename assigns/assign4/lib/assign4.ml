@@ -7,6 +7,12 @@ type token = Lpar | Rpar | Word of string
 
 let ( let* ) o f = match o with Some x -> f x | None -> None
 
+let rec nth_opt lst n =
+  match lst, n with
+  | [], _ -> None
+  | x :: _, 0 -> Some x
+  | _ :: xs, n -> nth_opt xs (n - 1)
+
 let tokens_of_string (s : string) : token list =
   let rec go acc i =
     if i >= String.length s
@@ -276,19 +282,19 @@ let string_of_ty_deriv (d : ty_deriv) : string =
 let check_rule (r : ty_rule) (prems : ty_jmt option list) (concl : ty_jmt) : bool =
   let prem_len_ok n = List.length prems = n in
   let prem_expr_matches i expected_expr =
-    match List.nth_opt prems i with
+    match nth_opt prems i with
     | Some (Some j) -> j.expr = expected_expr
     | Some None -> true
     | None -> false
   in
   let prem_ty_is i expected_ty =
-    match List.nth_opt prems i with
+    match nth_opt prems i with
     | Some (Some j) -> j.ty = expected_ty
     | Some None -> true
     | None -> false
   in
   let prem_ty_opt i =
-    match List.nth_opt prems i with
+    match nth_opt prems i with
     | Some (Some j) -> Some j.ty
     | _ -> None
   in
@@ -352,8 +358,13 @@ let check_deriv (d : ty_deriv) : status =
     | Hole -> (true, true)
     | Rule_app ra ->
       let prem_infos = List.map go ra.prem_derivs in
-      let has_hole = List.exists (fun (h, _) -> h) prem_infos in
-      let prems_valid = List.for_all (fun (_, v) -> v) prem_infos in
+      let has_hole =
+        List.fold_left (fun acc (h, _) -> acc || h) false prem_infos
+      in
+
+      let prems_valid =
+        List.fold_left (fun acc (_, v) -> acc && v) true prem_infos
+      in
       if not prems_valid then (has_hole, false)
       else
         let prem_jmts =
