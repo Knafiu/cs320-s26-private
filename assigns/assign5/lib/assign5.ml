@@ -29,6 +29,24 @@ let rec remove_key k = function
   | (x, v) :: xs ->
       if x = k then remove_key k xs
       else (x, v) :: remove_key k xs
+let rec consistent i j =
+  match i with
+  | [] -> true
+  | (lbl, sz) :: rest ->
+      (match assoc_opt lbl j with
+       | None -> consistent rest j
+       | Some sz' -> sz = sz' && consistent rest j)
+
+let union_idx i j =
+  let rec add_missing acc = function
+    | [] -> acc
+    | (lbl, sz) :: rest ->
+        if List.mem_assoc lbl acc then add_missing acc rest
+        else add_missing ((lbl, sz) :: acc) rest
+  in
+  add_missing i j
+
+let remove_axis lbl idx_space = remove_key lbl idx_space
 
 let dim_check (env : (string * tensor) list) (e : expr) : ((string * int) list) option =
   ignore (env, e); assert false (* TODO *)
