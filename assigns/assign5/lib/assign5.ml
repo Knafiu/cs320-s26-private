@@ -48,6 +48,11 @@ let union_idx i j =
 
 let remove_axis lbl idx_space = remove_key lbl idx_space
 
+let apply_op op x y =
+  match op with
+  | Add -> x +. y
+  | Mul -> x *. y
+  
 let dim_check (env : (string * tensor) list) (e : expr) : ((string * int) list) option =
   ignore (env, e); assert false (* TODO *)
 
