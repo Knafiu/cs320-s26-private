@@ -53,20 +53,34 @@ let apply_op op x y =
   | Add -> x +. y
   | Mul -> x *. y
 
-let rec dim_check (env : (string * tensor) list) (e : expr) : ((string * int) list) option =
-  match e with
-  | Ident (name, labels) ->
-      (match assoc_opt name env with
-       | None -> None
-       | Some t ->
-           let old_idx = Tensor.idx_space t in
-           if List.length labels <> List.length old_idx then None
-           else if not (distinct labels) then None
-           else Some (List.combine labels (List.map snd old_idx)))
+let dim_check (env : (string * tensor) list) (e : expr) : ((string * int) list) option =
+  let rec go e =
+    match e with
+    | Ident (name, labels) ->
+        (match assoc_opt name env with
+         | None -> None
+         | Some t ->
+             let old_idx = Tensor.idx_space t in
+             if List.length labels <> List.length old_idx then None
+             else if not (distinct labels) then None
+             else Some (List.combine labels (List.map snd old_idx)))
 
-  | Map (_, _, _) -> assert false
-  | Fold (_, _, _) -> assert false
+    | Map (_, e1, e2) ->
+        (match go e1, go e2 with
+         | Some i1, Some i2 ->
+             if consistent i1 i2 then Some (union_idx i1 i2)
+             else None
+         | _ -> None)
 
+    | Fold (_, lbl, e1) ->
+        (match go e1 with
+         | None -> None
+         | Some idx_space ->
+             if List.mem_assoc lbl idx_space
+             then Some (remove_axis lbl idx_space)
+             else None)
+  in
+  go e
 let eval (env : (string * tensor) list) (e : expr) : tensor =
   ignore (env, e); assert false (* TODO *)
 
