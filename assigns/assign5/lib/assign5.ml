@@ -52,9 +52,20 @@ let apply_op op x y =
   match op with
   | Add -> x +. y
   | Mul -> x *. y
-  
-let dim_check (env : (string * tensor) list) (e : expr) : ((string * int) list) option =
-  ignore (env, e); assert false (* TODO *)
+
+let rec dim_check (env : (string * tensor) list) (e : expr) : ((string * int) list) option =
+  match e with
+  | Ident (name, labels) ->
+      (match assoc_opt name env with
+       | None -> None
+       | Some t ->
+           let old_idx = Tensor.idx_space t in
+           if List.length labels <> List.length old_idx then None
+           else if not (distinct labels) then None
+           else Some (List.combine labels (List.map snd old_idx)))
+
+  | Map (_, _, _) -> assert false
+  | Fold (_, _, _) -> assert false
 
 let eval (env : (string * tensor) list) (e : expr) : tensor =
   ignore (env, e); assert false (* TODO *)
