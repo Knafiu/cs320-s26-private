@@ -82,7 +82,7 @@ let dim_check (env : (string * tensor) list) (e : expr) : ((string * int) list) 
   in
   go e
 let eval (env : (string * tensor) list) (e : expr) : tensor =
-  let rec fold_axis op lbl size t idx_without_lbl =
+  let fold_axis op lbl size t idx_without_lbl =
     let first = Tensor.get t ((lbl, 0) :: idx_without_lbl) in
     let rec loop acc k =
       if k = size then acc
