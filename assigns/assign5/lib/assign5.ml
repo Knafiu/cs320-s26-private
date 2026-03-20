@@ -82,7 +82,40 @@ let dim_check (env : (string * tensor) list) (e : expr) : ((string * int) list) 
   in
   go e
 let eval (env : (string * tensor) list) (e : expr) : tensor =
-  ignore (env, e); assert false (* TODO *)
+  let rec fold_axis op lbl size t idx_without_lbl =
+    let first = Tensor.get t ((lbl, 0) :: idx_without_lbl) in
+    let rec loop acc k =
+      if k = size then acc
+      else
+        let v = Tensor.get t ((lbl, k) :: idx_without_lbl) in
+        loop (apply_op op acc v) (k + 1)
+    in
+    loop first 1
+  in
+  let rec go e =
+    match e with
+    | Ident (name, labels) ->
+        let t = List.assoc name env in
+        Tensor.relabel_axes t labels
+
+    | Map (op, e1, e2) ->
+        let t1 = go e1 in
+        let t2 = go e2 in
+        let i1 = Tensor.idx_space t1 in
+        let i2 = Tensor.idx_space t2 in
+        let idx_space = union_idx i1 i2 in
+        Tensor.init idx_space (fun idx ->
+          apply_op op (Tensor.get t1 idx) (Tensor.get t2 idx))
+
+    | Fold (op, lbl, e1) ->
+        let t = go e1 in
+        let idx_space = Tensor.idx_space t in
+        let size = List.assoc lbl idx_space in
+        let result_idx = remove_axis lbl idx_space in
+        Tensor.init result_idx (fun idx ->
+          fold_axis op lbl size t idx)
+  in
+  go e
 
 type error =
   | Parse_error
