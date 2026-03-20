@@ -75,10 +75,7 @@ let dim_check (env : (string * tensor) list) (e : expr) : ((string * int) list) 
     | Fold (_, lbl, e1) ->
         (match go e1 with
          | None -> None
-         | Some idx_space ->
-             if List.mem_assoc lbl idx_space
-             then Some (remove_axis lbl idx_space)
-             else None)
+         | Some idx_space -> Some (remove_axis lbl idx_space))
   in
   go e
 let eval (env : (string * tensor) list) (e : expr) : tensor =
