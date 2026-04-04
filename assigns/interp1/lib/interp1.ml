@@ -65,7 +65,7 @@ let rec type_of (ctxt : ctxt) (e : expr) : ty option =
        | Some t1 -> type_of (Env.add x t1 ctxt) e2
        | None -> None)
   | LetRec { name; arg; arg_ty; out_ty; binding; body } ->
-      let f_ty = Fun (arg_ty, out_ty) in
+      let f_ty : ty = Fun (arg_ty, out_ty) in
       let ctxt' = ctxt |> Env.add name f_ty |> Env.add arg arg_ty in
       (match type_of ctxt' binding with
        | Some t when t = out_ty ->
@@ -81,7 +81,10 @@ let rec type_of (ctxt : ctxt) (e : expr) : ty option =
        | None -> None)
   | App (e1, e2) ->
       (match type_of ctxt e1, type_of ctxt e2 with
-       | Some (Fun (arg_ty, out_ty)), Some t2 when arg_ty = t2 -> Some out_ty
+       | Some t1, Some t2 ->
+           (match t1 with
+            | Fun (arg_ty, out_ty) when arg_ty = t2 -> Some out_ty
+            | _ -> None)
        | _ -> None)
   | Bop (op, e1, e2) ->
       (match op, type_of ctxt e1, type_of ctxt e2 with
