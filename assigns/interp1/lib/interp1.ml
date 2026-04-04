@@ -1,4 +1,3 @@
-
 (* Syntax *)
 
 type ty = Ast.Interp1.ty =
@@ -134,6 +133,58 @@ let rec eval (env : dyn_env) (e : expr) : value =
            let env' = clos_env |> Env.add f vf |> Env.add x va in
            eval env' body
        | _ -> assert false)
+  | Bop (op, e1, e2) ->
+      (match op with
+       | Add ->
+           (match eval env e1, eval env e2 with
+            | Int n1, Int n2 -> Int (n1 + n2)
+            | _ -> assert false)
+       | Sub ->
+           (match eval env e1, eval env e2 with
+            | Int n1, Int n2 -> Int (n1 - n2)
+            | _ -> assert false)
+       | Mul ->
+           (match eval env e1, eval env e2 with
+            | Int n1, Int n2 -> Int (n1 * n2)
+            | _ -> assert false)
+       | Div ->
+           (match eval env e1, eval env e2 with
+            | Int _, Int 0 -> raise Div_by_zero
+            | Int n1, Int n2 -> Int (n1 / n2)
+            | _ -> assert false)
+       | Mod ->
+           (match eval env e1, eval env e2 with
+            | Int _, Int 0 -> raise Div_by_zero
+            | Int n1, Int n2 -> Int (n1 mod n2)
+            | _ -> assert false)
+       | Eq ->
+           Bool (eval env e1 = eval env e2)
+       | Neq ->
+           Bool (eval env e1 <> eval env e2)
+       | Lt ->
+           Bool (eval env e1 < eval env e2)
+       | Lte ->
+           Bool (eval env e1 <= eval env e2)
+       | Gt ->
+           Bool (eval env e1 > eval env e2)
+       | Gte ->
+           Bool (eval env e1 >= eval env e2)
+       | And ->
+           (match eval env e1 with
+            | Bool false -> Bool false
+            | Bool true ->
+                (match eval env e2 with
+                 | Bool b -> Bool b
+                 | _ -> assert false)
+            | _ -> assert false)
+       | Or ->
+           (match eval env e1 with
+            | Bool true -> Bool true
+            | Bool false ->
+                (match eval env e2 with
+                 | Bool b -> Bool b
+                 | _ -> assert false)
+            | _ -> assert false))
   | Negate e1 ->
       (match eval env e1 with
        | Int n -> Int (-n)
@@ -143,8 +194,6 @@ let rec eval (env : dyn_env) (e : expr) : value =
        | Bool true -> Unit
        | Bool false -> raise Assert_fail
        | _ -> assert false)
-  | Bop _ -> assert false
-
 
 (* Interpretation *)
 
