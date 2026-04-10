@@ -340,7 +340,7 @@ let rec value_compare (v1 : value) (v2 : value) : int =
   | VBool b1, VBool b2 -> Stdlib.compare b1 b2
   | VInt n1, VInt n2 -> Stdlib.compare n1 n2
   | VInt_list xs, VInt_list ys -> Stdlib.compare xs ys
-  | VTuple vs1, VTuple vs2 ->
+    | VTuple vs1, VTuple vs2 ->
     let rec cmp_lists xs ys =
       match xs, ys with
       | [], [] -> 0
@@ -349,7 +349,7 @@ let rec value_compare (v1 : value) (v2 : value) : int =
         if c <> 0 then c else cmp_lists xs' ys'
       | _ -> assert false
     in
-    cmp_lists vs1 ys
+    cmp_lists vs1 vs2
   | VClos _, VClos _ -> assert false
   | _ -> assert false
 
