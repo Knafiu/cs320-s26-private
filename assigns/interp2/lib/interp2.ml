@@ -161,11 +161,7 @@ let bound_several_times pos x =
    ----------------------------------------------------------------------
 *)
 
-(* Contexts *)
-
 type ctxt = ty Env.t
-
-(* Type Checking *)
 
 let mk_fun_ty (args : (string * ty) list) (out_ty : ty) : ty =
   List.fold_right (fun (_, arg_ty) acc -> TFun (arg_ty, acc)) args out_ty
@@ -245,41 +241,43 @@ let rec type_of_expr (ctxt : ctxt) (e : expr) : (ty, Error_msg.t) result =
     apply_fun_ty fn_ty arg_tys
 
   | Let {is_rec; name; args; annot; binding; body} ->
-    if is_rec then
-      match args, annot with
-      | [], _ -> assert false
-      | _, None -> assert false
-      | _, Some out_ty ->
-        let fn_ty = mk_fun_ty args out_ty in
-        let binding_ctxt =
-          ctxt
-          |> Env.add name fn_ty
-          |> fun c -> add_args_to_ctxt c args
-        in
-        let* binding_ty = type_of_expr binding_ctxt binding in
-        if binding_ty = out_ty
-        then type_of_expr (Env.add name fn_ty ctxt) body
-        else assert false
-    else
-      match args with
-      | [] ->
-        let* binding_ty = type_of_expr ctxt binding in
-        let declared_ty =
-          match annot with
-          | None -> binding_ty
-          | Some t -> if t = binding_ty then t else assert false
-        in
-        type_of_expr (Env.add name declared_ty ctxt) body
-      | _ ->
-        let binding_ctxt = add_args_to_ctxt ctxt args in
-        let* inferred_out_ty = type_of_expr binding_ctxt binding in
-        let out_ty =
-          match annot with
-          | None -> inferred_out_ty
-          | Some t -> if t = inferred_out_ty then t else assert false
-        in
-        let fn_ty = mk_fun_ty args out_ty in
-        type_of_expr (Env.add name fn_ty ctxt) body
+    (
+      if is_rec then
+        match args, annot with
+        | [], _ -> assert false
+        | _, None -> assert false
+        | _, Some out_ty ->
+          let fn_ty = mk_fun_ty args out_ty in
+          let binding_ctxt =
+            ctxt
+            |> Env.add name fn_ty
+            |> fun c -> add_args_to_ctxt c args
+          in
+          let* binding_ty = type_of_expr binding_ctxt binding in
+          if binding_ty = out_ty
+          then type_of_expr (Env.add name fn_ty ctxt) body
+          else assert false
+      else
+        match args with
+        | [] ->
+          let* binding_ty = type_of_expr ctxt binding in
+          let declared_ty =
+            match annot with
+            | None -> binding_ty
+            | Some t -> if t = binding_ty then t else assert false
+          in
+          type_of_expr (Env.add name declared_ty ctxt) body
+        | _ ->
+          let binding_ctxt = add_args_to_ctxt ctxt args in
+          let* inferred_out_ty = type_of_expr binding_ctxt binding in
+          let out_ty =
+            match annot with
+            | None -> inferred_out_ty
+            | Some t -> if t = inferred_out_ty then t else assert false
+          in
+          let fn_ty = mk_fun_ty args out_ty in
+          type_of_expr (Env.add name fn_ty ctxt) body
+    )
 
   | Match _ ->
     assert false
@@ -297,14 +295,13 @@ let type_of (p : prog) : (ty, Error_msg.t) result =
         go ctxt (Some ty) ps
       | Error err -> Error err
     )
-  in go Env.empty None p
+  in
+  go Env.empty None p
 
 
 (* EVALUATION
    ----------------------------------------------------------------------
 *)
-
-(* Values *)
 
 type value =
   | VUnit
@@ -319,11 +316,7 @@ type value =
     }
   | VInt_list of int list
 
-(* Dynamic Environments *)
-
 type dyn_env = value Env.t
-
-(* Evaluation *)
 
 exception Div_by_zero of pos
 exception Assert_fail of pos
@@ -356,11 +349,11 @@ let rec value_compare (v1 : value) (v2 : value) : int =
         if c <> 0 then c else cmp_lists xs' ys'
       | _ -> assert false
     in
-    cmp_lists vs1 vs2
+    cmp_lists vs1 ys
   | VClos _, VClos _ -> assert false
   | _ -> assert false
 
-let rec apply_closure (clos : value) (arg_val : value) : value =
+and apply_closure (clos : value) (arg_val : value) : value =
   match clos with
   | VClos {env = clos_env; name; args; body} ->
     begin match args with
@@ -515,7 +508,6 @@ and eval_expr (env : dyn_env) (e : expr) : value =
       let bound_val = eval_expr env binding in
       let env' = Env.add name bound_val env in
       eval_expr env' body
-
     | false, _ ->
       let clos =
         VClos
@@ -528,10 +520,8 @@ and eval_expr (env : dyn_env) (e : expr) : value =
       in
       let env' = Env.add name clos env in
       eval_expr env' body
-
     | true, [] ->
       assert false
-
     | true, _ ->
       let clos =
         VClos
@@ -558,7 +548,8 @@ let eval (p : prog) : value =
       let e = {pos; expr=Let {is_rec; name; args; annot; binding; body}} in
       let v = eval_expr env e in
       go (Env.add name v env) (Some v) ps
-  in go Env.empty None p
+  in
+  go Env.empty None p
 
 
 (* INTERPRETER
