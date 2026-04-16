@@ -1,17 +1,13 @@
 open Utils
 module Error_msg = Error_msg
 
-(* SYNTAX
-   ----------------------------------------------------------------------
-*)
-
 type ty = Ast.Interp2.ty =
-    | TUnit
-    | TBool
-    | TInt
-    | TInt_list
-    | TFun of ty * ty
-    | TTuple of ty list
+  | TUnit
+  | TBool
+  | TInt
+  | TInt_list
+  | TFun of ty * ty
+  | TTuple of ty list
 
 let rec pp_ty ppf ty =
   let open Fmt in
@@ -95,10 +91,6 @@ type prog = stmt list
 
 module Env = Map.Make(String)
 
-(* TYPE ERRORS
-   ----------------------------------------------------------------------
-*)
-
 let unknown_var pos x = Error_msg.mk pos (Format.asprintf "Unbound value %s" x)
 
 let exp_ty pos t1 t2 =
@@ -156,11 +148,6 @@ let bound_several_times pos x =
       x
   in Error_msg.mk pos msg
 
-
-(* TYPING
-   ----------------------------------------------------------------------
-*)
-
 type ctxt = ty Env.t
 
 let mk_fun_ty (args : (string * ty) list) (out_ty : ty) : ty =
@@ -183,46 +170,45 @@ let rec type_of_expr (ctxt : ctxt) (e : expr) : (ty, Error_msg.t) result =
   | Unit -> Ok TUnit
   | Bool _ -> Ok TBool
   | Int _ -> Ok TInt
-  | Var x -> Ok (Env.find x ctxt)
+  | Var x ->
+    begin match Env.find_opt x ctxt with
+    | Some t -> Ok t
+    | None -> Error (unknown_var e.pos x)
+    end
   | Nil -> Ok TInt_list
-
   | Assert e1 ->
     let* t1 = type_of_expr ctxt e1 in
-    if t1 = TBool then Ok TUnit else assert false
-
+    if t1 = TBool then Ok TUnit else Error (exp_ty e1.pos t1 TBool)
   | Negate e1 ->
     let* t1 = type_of_expr ctxt e1 in
-    if t1 = TInt then Ok TInt else assert false
-
+    if t1 = TInt then Ok TInt else Error (exp_ty e1.pos t1 TInt)
   | Tuple es ->
     let* ts = type_list es in
     Ok (TTuple ts)
-
   | Bop (bop, e1, e2) ->
     let* t1 = type_of_expr ctxt e1 in
     let* t2 = type_of_expr ctxt e2 in
     begin match bop with
     | Add | Sub | Mul | Div | Mod ->
-      if t1 = TInt && t2 = TInt then Ok TInt else assert false
+      if t1 = TInt && t2 = TInt then Ok TInt else Error (exp_ty e2.pos t2 TInt)
     | Eq | Neq | Lt | Lte | Gt | Gte ->
-      if t1 = t2 then Ok TBool else assert false
+      if t1 = t2 then Ok TBool else Error (exp_ty e2.pos t2 t1)
     | And | Or ->
-      if t1 = TBool && t2 = TBool then Ok TBool else assert false
+      if t1 = TBool && t2 = TBool then Ok TBool else Error (exp_ty e2.pos t2 TBool)
     | Cons ->
-      if t1 = TInt && t2 = TInt_list then Ok TInt_list else assert false
+      if t1 = TInt && t2 = TInt_list then Ok TInt_list else Error (exp_ty e2.pos t2 TInt_list)
     end
-
   | If (e1, e2, e3) ->
     let* t1 = type_of_expr ctxt e1 in
     let* t2 = type_of_expr ctxt e2 in
     let* t3 = type_of_expr ctxt e3 in
-    if t1 = TBool && t2 = t3 then Ok t2 else assert false
-
+    if t1 <> TBool then Error (exp_ty e1.pos t1 TBool)
+    else if t2 <> t3 then Error (exp_ty e3.pos t3 t2)
+    else Ok t2
   | Fun (args, body) ->
     let body_ctxt = add_args_to_ctxt ctxt args in
     let* body_ty = type_of_expr body_ctxt body in
     Ok (mk_fun_ty args body_ty)
-
   | App (fn, args) ->
     let* fn_ty = type_of_expr ctxt fn in
     let* arg_tys = type_list args in
@@ -234,51 +220,51 @@ let rec type_of_expr (ctxt : ctxt) (e : expr) : (ty, Error_msg.t) result =
         | TFun (param_ty, out_ty) ->
           if param_ty = arg_ty
           then apply_fun_ty out_ty rest
-          else assert false
-        | _ -> assert false
+          else Error (exp_ty e.pos arg_ty param_ty)
+        | _ -> Error (not_func fn.pos ty)
         end
     in
     apply_fun_ty fn_ty arg_tys
-
   | Let {is_rec; name; args; annot; binding; body} ->
-    (
-      if is_rec then
-        match args, annot with
-        | [], _ -> assert false
-        | _, None -> assert false
-        | _, Some out_ty ->
-          let fn_ty = mk_fun_ty args out_ty in
-          let binding_ctxt =
-            ctxt
-            |> Env.add name fn_ty
-            |> fun c -> add_args_to_ctxt c args
-          in
-          let* binding_ty = type_of_expr binding_ctxt binding in
-          if binding_ty = out_ty
-          then type_of_expr (Env.add name fn_ty ctxt) body
-          else assert false
-      else
-        match args with
-        | [] ->
-          let* binding_ty = type_of_expr ctxt binding in
-          let declared_ty =
-            match annot with
-            | None -> binding_ty
-            | Some t -> if t = binding_ty then t else assert false
-          in
-          type_of_expr (Env.add name declared_ty ctxt) body
-        | _ ->
-          let binding_ctxt = add_args_to_ctxt ctxt args in
-          let* inferred_out_ty = type_of_expr binding_ctxt binding in
-          let out_ty =
-            match annot with
-            | None -> inferred_out_ty
-            | Some t -> if t = inferred_out_ty then t else assert false
-          in
-          let fn_ty = mk_fun_ty args out_ty in
-          type_of_expr (Env.add name fn_ty ctxt) body
-    )
-
+    if is_rec then
+      match args, annot with
+      | [], _ -> Error (missing_rec_arg e.pos)
+      | _, None -> Error (missing_rec_annot e.pos)
+      | _, Some out_ty ->
+        let fn_ty = mk_fun_ty args out_ty in
+        let binding_ctxt =
+          ctxt
+          |> Env.add name fn_ty
+          |> fun c -> add_args_to_ctxt c args
+        in
+        let* binding_ty = type_of_expr binding_ctxt binding in
+        if binding_ty = out_ty
+        then type_of_expr (Env.add name fn_ty ctxt) body
+        else Error (exp_ty binding.pos binding_ty out_ty)
+    else
+      match args with
+      | [] ->
+        let* binding_ty = type_of_expr ctxt binding in
+        let declared_ty =
+          match annot with
+          | None -> Ok binding_ty
+          | Some t ->
+            if t = binding_ty then Ok t else Error (exp_ty binding.pos binding_ty t)
+        in
+        let* declared_ty = declared_ty in
+        type_of_expr (Env.add name declared_ty ctxt) body
+      | _ ->
+        let binding_ctxt = add_args_to_ctxt ctxt args in
+        let* inferred_out_ty = type_of_expr binding_ctxt binding in
+        let out_ty =
+          match annot with
+          | None -> Ok inferred_out_ty
+          | Some t ->
+            if t = inferred_out_ty then Ok t else Error (exp_ty binding.pos inferred_out_ty t)
+        in
+        let* out_ty = out_ty in
+        let fn_ty = mk_fun_ty args out_ty in
+        type_of_expr (Env.add name fn_ty ctxt) body
   | Match _ ->
     assert false
 
@@ -286,7 +272,7 @@ let type_of (p : prog) : (ty, Error_msg.t) result =
   let rec go ctxt ty p =
     match p with
     | [] -> Ok (Option.value ~default:TUnit ty)
-    | {pos; stmt=SLet {is_rec; name; args; annot; binding}} :: ps -> (
+    | {pos; stmt=SLet {is_rec; name; args; annot; binding}} :: ps ->
       let body = {pos=dummy_pos; expr=Var name} in
       let e = {pos; expr=Let {is_rec; name; args; annot; binding; body}} in
       match type_of_expr ctxt e with
@@ -294,14 +280,8 @@ let type_of (p : prog) : (ty, Error_msg.t) result =
         let ctxt = Env.add name ty ctxt in
         go ctxt (Some ty) ps
       | Error err -> Error err
-    )
   in
   go Env.empty None p
-
-
-(* EVALUATION
-   ----------------------------------------------------------------------
-*)
 
 type value =
   | VUnit
@@ -340,7 +320,7 @@ let rec value_compare (v1 : value) (v2 : value) : int =
   | VBool b1, VBool b2 -> Stdlib.compare b1 b2
   | VInt n1, VInt n2 -> Stdlib.compare n1 n2
   | VInt_list xs, VInt_list ys -> Stdlib.compare xs ys
-    | VTuple vs1, VTuple vs2 ->
+  | VTuple vs1, VTuple vs2 ->
     let rec cmp_lists xs ys =
       match xs, ys with
       | [], [] -> 0
@@ -380,23 +360,19 @@ and eval_expr (env : dyn_env) (e : expr) : value =
   | Int n -> VInt n
   | Var x -> Env.find x env
   | Nil -> VInt_list []
-
   | Assert e1 ->
     begin match eval_expr env e1 with
     | VBool true -> VUnit
     | VBool false -> raise (Assert_fail e.pos)
     | _ -> assert false
     end
-
   | Negate e1 ->
     begin match eval_expr env e1 with
     | VInt n -> VInt (-n)
     | _ -> assert false
     end
-
   | Tuple es ->
     VTuple (List.map (eval_expr env) es)
-
   | Bop (bop, e1, e2) ->
     begin match bop with
     | Add ->
@@ -476,14 +452,12 @@ and eval_expr (env : dyn_env) (e : expr) : value =
       | _ -> assert false
       end
     end
-
   | If (e1, e2, e3) ->
     begin match eval_expr env e1 with
     | VBool true -> eval_expr env e2
     | VBool false -> eval_expr env e3
     | _ -> assert false
     end
-
   | Fun (args, body) ->
     VClos
       {
@@ -492,7 +466,6 @@ and eval_expr (env : dyn_env) (e : expr) : value =
         args = List.map fst args;
         body;
       }
-
   | App (fn, args) ->
     let fn_val = eval_expr env fn in
     List.fold_left
@@ -501,7 +474,6 @@ and eval_expr (env : dyn_env) (e : expr) : value =
         apply_closure acc arg_val)
       fn_val
       args
-
   | Let {is_rec; name; args; annot = _; binding; body} ->
     begin match is_rec, args with
     | false, [] ->
@@ -535,7 +507,6 @@ and eval_expr (env : dyn_env) (e : expr) : value =
       let env' = Env.add name clos env in
       eval_expr env' body
     end
-
   | Match _ ->
     assert false
 
@@ -551,11 +522,6 @@ let eval (p : prog) : value =
   in
   go Env.empty None p
 
-
-(* INTERPRETER
-   ----------------------------------------------------------------------
-*)
-
 let interp ~(filename : string) : (value * ty, Error_msg.t) result =
   let ( let* ) = Result.bind in
   let* prog = Syntax.parse ~filename in
@@ -569,11 +535,6 @@ let interp ~(filename : string) : (value * ty, Error_msg.t) result =
     | exception Match_fail pos -> Error (Error_msg.mk pos "(Exception) Match_fail")
   in
   Ok (v, ty)
-
-
-(* TESTING STUFF
-   ----------------------------------------------------------------------
-*)
 
 let parse_expr s =
   let s = "let _ = " ^ s in
