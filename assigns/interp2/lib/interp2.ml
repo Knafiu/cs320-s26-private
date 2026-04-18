@@ -322,20 +322,21 @@ let rec type_of_expr (ctxt : ctxt) (e : expr) : (ty, Error_msg.t) result =
         let* out_ty = out_ty in
         let fn_ty = mk_fun_ty args out_ty in
         type_of_expr (Env.add name fn_ty ctxt) body
-  | Match (scrutinee, branches) ->
+
+| Match (scrutinee, branches) ->
     let* scrut_ty = type_of_expr ctxt scrutinee in
     begin match branches with
     | [] -> assert false
     | (p1, e1) :: rest ->
       let* pat_ctxt1 = type_pattern Env.empty p1 scrut_ty in
-      let ctxt1 = Env.union (fun _ old_t new_t -> Some new_t) ctxt pat_ctxt1 in
+      let ctxt1 = Env.union (fun _ _ new_t -> Some new_t) ctxt pat_ctxt1 in
       let* branch_ty = type_of_expr ctxt1 e1 in
       let rec check_rest bs =
         match bs with
         | [] -> Ok branch_ty
         | (p, branch_e) :: tl ->
           let* pat_ctxt = type_pattern Env.empty p scrut_ty in
-          let branch_ctxt = Env.union (fun _ old_t new_t -> Some new_t) ctxt pat_ctxt in
+          let branch_ctxt = Env.union (fun _ _ new_t -> Some new_t) ctxt pat_ctxt in
           let* this_ty = type_of_expr branch_ctxt branch_e in
           if this_ty = branch_ty then check_rest tl
           else Error (exp_ty branch_e.pos this_ty branch_ty)
