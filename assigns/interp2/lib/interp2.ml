@@ -230,28 +230,19 @@ let rec type_of_expr (ctxt : ctxt) (e : expr) : (ty, Error_msg.t) result =
     let* t2 = type_of_expr ctxt e2 in
     begin match bop with
     | Add | Sub | Mul | Div | Mod ->
-      if t1 = TInt then
-        if t2 = TInt then Ok TInt else Error (exp_ty e2.pos t2 TInt)
-      else
-        Error (exp_ty e1.pos t1 TInt)
-    | Eq | Neq ->
-      if t1 <> t2 then Error (exp_ty e2.pos t2 t1)
-      else if comparable_ty t1 then Ok TBool
-      else Error (exp_ty e1.pos t1 TUnit)
-    | Lt | Lte | Gt | Gte ->
-      if t1 <> t2 then Error (exp_ty e2.pos t2 t1)
-      else if comparable_ty t1 then Ok TBool
-      else Error (exp_ty e1.pos t1 TUnit)
+        if t1 <> TInt then Error (exp_ty e1.pos t1 TInt)
+        else if t2 <> TInt then Error (exp_ty e2.pos t2 TInt)
+        else Ok TInt
+    | Eq | Neq | Lt | Lte | Gt | Gte ->
+        if t1 = t2 then Ok TBool else Error (exp_ty e2.pos t2 t1)
     | And | Or ->
-      if t1 = TBool then
-        if t2 = TBool then Ok TBool else Error (exp_ty e2.pos t2 TBool)
-      else
-        Error (exp_ty e1.pos t1 TBool)
+        if t1 <> TBool then Error (exp_ty e1.pos t1 TBool)
+        else if t2 <> TBool then Error (exp_ty e2.pos t2 TBool)
+        else Ok TBool
     | Cons ->
-      if t1 = TInt then
-        if t2 = TInt_list then Ok TInt_list else Error (exp_ty e2.pos t2 TInt_list)
-      else
-        Error (exp_ty e1.pos t1 TInt)
+        if t1 <> TInt then Error (exp_ty e1.pos t1 TInt)
+        else if t2 <> TInt_list then Error (exp_ty e2.pos t2 TInt_list)
+        else Ok TInt_list
     end
   | If (e1, e2, e3) ->
     let* t1 = type_of_expr ctxt e1 in
@@ -266,22 +257,23 @@ let rec type_of_expr (ctxt : ctxt) (e : expr) : (ty, Error_msg.t) result =
     Ok (mk_fun_ty args body_ty)
   | App (fn, args) ->
     let* fn_ty = type_of_expr ctxt fn in
-    let* arg_tys = type_list args in
-    let rec apply_fun_ty ty args_left consumed_any =
-      match args_left with
+    let rec go ty remaining consumed_any =
+      match remaining with
       | [] -> Ok ty
-      | arg_ty :: rest ->
-        begin match ty with
-        | TFun (param_ty, out_ty) ->
-          if param_ty = arg_ty
-          then apply_fun_ty out_ty rest true
-          else Error (exp_ty e.pos arg_ty param_ty)
-        | _ ->
-          if consumed_any then Error (too_many_args fn.pos ty)
-          else Error (not_func fn.pos ty)
-        end
+      | arg_expr :: rest ->
+          let* arg_ty = type_of_expr ctxt arg_expr in
+          begin match ty with
+          | TFun (param_ty, out_ty) ->
+              if arg_ty = param_ty
+              then go out_ty rest true
+              else Error (exp_ty arg_expr.pos arg_ty param_ty)
+          | _ ->
+              if consumed_any
+              then Error (too_many_args e.pos ty)
+              else Error (not_func fn.pos ty)
+          end
     in
-    apply_fun_ty fn_ty arg_tys false
+    go fn_ty args false
   | Let {is_rec; name; args; annot; binding; body} ->
     if is_rec then
       begin
