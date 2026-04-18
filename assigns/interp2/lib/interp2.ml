@@ -156,8 +156,8 @@ let mk_fun_ty (args : (string * ty) list) (out_ty : ty) : ty =
 let add_args_to_ctxt (ctxt : ctxt) (args : (string * ty) list) : ctxt =
   List.fold_left (fun acc (x, t) -> Env.add x t acc) ctxt args
 
-let rec comparable_ty (ty : ty) : bool =
-  match ty with
+let rec comparable_ty (t : ty) : bool =
+  match t with
   | TUnit | TBool | TInt | TInt_list -> true
   | TTuple ts -> List.for_all comparable_ty ts
   | TFun _ -> false
@@ -234,7 +234,9 @@ let rec type_of_expr (ctxt : ctxt) (e : expr) : (ty, Error_msg.t) result =
         else if t2 <> TInt then Error (exp_ty e2.pos t2 TInt)
         else Ok TInt
     | Eq | Neq | Lt | Lte | Gt | Gte ->
-        if t1 = t2 then Ok TBool else Error (exp_ty e2.pos t2 t1)
+        if t1 <> t2 then Error (exp_ty e2.pos t2 t1)
+        else if comparable_ty t1 then Ok TBool
+        else Error (exp_ty e1.pos t1 TUnit)
     | And | Or ->
         if t1 <> TBool then Error (exp_ty e1.pos t1 TBool)
         else if t2 <> TBool then Error (exp_ty e2.pos t2 TBool)
@@ -257,23 +259,28 @@ let rec type_of_expr (ctxt : ctxt) (e : expr) : (ty, Error_msg.t) result =
     Ok (mk_fun_ty args body_ty)
   | App (fn, args) ->
     let* fn_ty = type_of_expr ctxt fn in
-    let rec go ty remaining consumed_any =
+    let rec go original_ty current_ty remaining =
       match remaining with
-      | [] -> Ok ty
+      | [] -> Ok current_ty
       | arg_expr :: rest ->
           let* arg_ty = type_of_expr ctxt arg_expr in
-          begin match ty with
+          begin match current_ty with
           | TFun (param_ty, out_ty) ->
               if arg_ty = param_ty
-              then go out_ty rest true
+              then go original_ty out_ty rest
               else Error (exp_ty arg_expr.pos arg_ty param_ty)
           | _ ->
-              if consumed_any
-              then Error (too_many_args e.pos ty)
-              else Error (not_func fn.pos ty)
+              Error (too_many_args fn.pos original_ty)
           end
     in
-    go fn_ty args false
+    begin match args with
+    | [] -> Ok fn_ty
+    | _ ->
+        begin match fn_ty with
+        | TFun _ -> go fn_ty fn_ty args
+        | _ -> Error (not_func fn.pos fn_ty)
+        end
+    end
   | Let {is_rec; name; args; annot; binding; body} ->
     if is_rec then
       begin
