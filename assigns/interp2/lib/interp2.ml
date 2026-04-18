@@ -156,6 +156,46 @@ let mk_fun_ty (args : (string * ty) list) (out_ty : ty) : ty =
 let add_args_to_ctxt (ctxt : ctxt) (args : (string * ty) list) : ctxt =
   List.fold_left (fun acc (x, t) -> Env.add x t acc) ctxt args
 
+let rec comparable_ty (ty : ty) : bool =
+  match ty with
+  | TUnit | TBool | TInt | TInt_list -> true
+  | TTuple ts -> List.for_all comparable_ty ts
+  | TFun _ -> false
+
+let rec type_pattern (ctxt : ctxt) (p : pattern) (ty : ty) : (ctxt, Error_msg.t) result =
+  let ( let* ) = Result.bind in
+  match p.pattern with
+  | PUnit ->
+      if ty = TUnit then Ok ctxt else Error (exp_pat p.pos TUnit ty)
+  | PBool _ ->
+      if ty = TBool then Ok ctxt else Error (exp_pat p.pos TBool ty)
+  | PInt _ ->
+      if ty = TInt then Ok ctxt else Error (exp_pat p.pos TInt ty)
+  | PNil ->
+      if ty = TInt_list then Ok ctxt else Error (exp_pat p.pos TInt_list ty)
+  | PVar x ->
+      if Env.mem x ctxt then Error (bound_several_times p.pos x)
+      else Ok (Env.add x ty ctxt)
+  | PCons (p1, p2) ->
+      if ty <> TInt_list then Error (exp_pat p.pos TInt_list ty)
+      else
+        let* ctxt1 = type_pattern ctxt p1 TInt in
+        type_pattern ctxt1 p2 TInt_list
+  | PTuple ps ->
+      begin match ty with
+      | TTuple ts ->
+          if List.length ps <> List.length ts then Error (exp_diff_tuple_pat p.pos ty)
+          else
+            List.fold_left2
+              (fun acc p_i t_i ->
+                 let* ctxt_acc = acc in
+                 type_pattern ctxt_acc p_i t_i)
+              (Ok ctxt)
+              ps
+              ts
+      | _ -> Error (exp_tuple_pat p.pos ty)
+      end
+
 let rec type_of_expr (ctxt : ctxt) (e : expr) : (ty, Error_msg.t) result =
   let ( let* ) = Result.bind in
   let rec type_list (es : expr list) : (ty list, Error_msg.t) result =
@@ -190,13 +230,28 @@ let rec type_of_expr (ctxt : ctxt) (e : expr) : (ty, Error_msg.t) result =
     let* t2 = type_of_expr ctxt e2 in
     begin match bop with
     | Add | Sub | Mul | Div | Mod ->
-      if t1 = TInt && t2 = TInt then Ok TInt else Error (exp_ty e2.pos t2 TInt)
-    | Eq | Neq | Lt | Lte | Gt | Gte ->
-      if t1 = t2 then Ok TBool else Error (exp_ty e2.pos t2 t1)
+      if t1 = TInt then
+        if t2 = TInt then Ok TInt else Error (exp_ty e2.pos t2 TInt)
+      else
+        Error (exp_ty e1.pos t1 TInt)
+    | Eq | Neq ->
+      if t1 <> t2 then Error (exp_ty e2.pos t2 t1)
+      else if comparable_ty t1 then Ok TBool
+      else Error (exp_ty e1.pos t1 TUnit)
+    | Lt | Lte | Gt | Gte ->
+      if t1 <> t2 then Error (exp_ty e2.pos t2 t1)
+      else if comparable_ty t1 then Ok TBool
+      else Error (exp_ty e1.pos t1 TUnit)
     | And | Or ->
-      if t1 = TBool && t2 = TBool then Ok TBool else Error (exp_ty e2.pos t2 TBool)
+      if t1 = TBool then
+        if t2 = TBool then Ok TBool else Error (exp_ty e2.pos t2 TBool)
+      else
+        Error (exp_ty e1.pos t1 TBool)
     | Cons ->
-      if t1 = TInt && t2 = TInt_list then Ok TInt_list else Error (exp_ty e2.pos t2 TInt_list)
+      if t1 = TInt then
+        if t2 = TInt_list then Ok TInt_list else Error (exp_ty e2.pos t2 TInt_list)
+      else
+        Error (exp_ty e1.pos t1 TInt)
     end
   | If (e1, e2, e3) ->
     let* t1 = type_of_expr ctxt e1 in
@@ -212,19 +267,21 @@ let rec type_of_expr (ctxt : ctxt) (e : expr) : (ty, Error_msg.t) result =
   | App (fn, args) ->
     let* fn_ty = type_of_expr ctxt fn in
     let* arg_tys = type_list args in
-    let rec apply_fun_ty ty args_left =
+    let rec apply_fun_ty ty args_left consumed_any =
       match args_left with
       | [] -> Ok ty
       | arg_ty :: rest ->
         begin match ty with
         | TFun (param_ty, out_ty) ->
           if param_ty = arg_ty
-          then apply_fun_ty out_ty rest
+          then apply_fun_ty out_ty rest true
           else Error (exp_ty e.pos arg_ty param_ty)
-        | _ -> Error (not_func fn.pos ty)
+        | _ ->
+          if consumed_any then Error (too_many_args fn.pos ty)
+          else Error (not_func fn.pos ty)
         end
     in
-    apply_fun_ty fn_ty arg_tys
+    apply_fun_ty fn_ty arg_tys false
   | Let {is_rec; name; args; annot; binding; body} ->
     if is_rec then
       match args, annot with
@@ -265,14 +322,32 @@ let rec type_of_expr (ctxt : ctxt) (e : expr) : (ty, Error_msg.t) result =
         let* out_ty = out_ty in
         let fn_ty = mk_fun_ty args out_ty in
         type_of_expr (Env.add name fn_ty ctxt) body
-  | Match _ ->
-    assert false
+  | Match (scrutinee, branches) ->
+    let* scrut_ty = type_of_expr ctxt scrutinee in
+    begin match branches with
+    | [] -> assert false
+    | (p1, e1) :: rest ->
+      let* pat_ctxt1 = type_pattern Env.empty p1 scrut_ty in
+      let ctxt1 = Env.union (fun _ old_t new_t -> Some new_t) ctxt pat_ctxt1 in
+      let* branch_ty = type_of_expr ctxt1 e1 in
+      let rec check_rest bs =
+        match bs with
+        | [] -> Ok branch_ty
+        | (p, branch_e) :: tl ->
+          let* pat_ctxt = type_pattern Env.empty p scrut_ty in
+          let branch_ctxt = Env.union (fun _ old_t new_t -> Some new_t) ctxt pat_ctxt in
+          let* this_ty = type_of_expr branch_ctxt branch_e in
+          if this_ty = branch_ty then check_rest tl
+          else Error (exp_ty branch_e.pos this_ty branch_ty)
+      in
+      check_rest rest
+    end
 
 let type_of (p : prog) : (ty, Error_msg.t) result =
   let rec go ctxt ty p =
     match p with
     | [] -> Ok (Option.value ~default:TUnit ty)
-    | {pos; stmt=SLet {is_rec; name; args; annot; binding}} :: ps ->
+    | {pos; stmt=SLet {is_rec; name; args; annot; binding}} :: ps -> (
       let body = {pos=dummy_pos; expr=Var name} in
       let e = {pos; expr=Let {is_rec; name; args; annot; binding; body}} in
       match type_of_expr ctxt e with
@@ -280,6 +355,7 @@ let type_of (p : prog) : (ty, Error_msg.t) result =
         let ctxt = Env.add name ty ctxt in
         go ctxt (Some ty) ps
       | Error err -> Error err
+    )
   in
   go Env.empty None p
 
@@ -352,6 +428,35 @@ and apply_closure (clos : value) (arg_val : value) : value =
       end
     end
   | _ -> assert false
+
+and match_pattern (p : pattern) (v : value) : dyn_env option =
+  match p.pattern, v with
+  | PUnit, VUnit -> Some Env.empty
+  | PBool b1, VBool b2 when b1 = b2 -> Some Env.empty
+  | PInt n1, VInt n2 when n1 = n2 -> Some Env.empty
+  | PNil, VInt_list [] -> Some Env.empty
+  | PVar x, v -> Some (Env.add x v Env.empty)
+  | PCons (p1, p2), VInt_list (x :: xs) ->
+    begin match match_pattern p1 (VInt x), match_pattern p2 (VInt_list xs) with
+    | Some env1, Some env2 ->
+      Some (Env.union (fun _ v _ -> Some v) env1 env2)
+    | _ -> None
+    end
+  | PTuple ps, VTuple vs when List.length ps = List.length vs ->
+    let rec go ps vs acc =
+      match ps, vs with
+      | [], [] -> Some acc
+      | p :: ps', v :: vs' ->
+        begin match match_pattern p v with
+        | None -> None
+        | Some env_p ->
+          let acc' = Env.union (fun _ v _ -> Some v) acc env_p in
+          go ps' vs' acc'
+        end
+      | _ -> None
+    in
+    go ps vs Env.empty
+  | _ -> None
 
 and eval_expr (env : dyn_env) (e : expr) : value =
   match e.expr with
@@ -507,8 +612,20 @@ and eval_expr (env : dyn_env) (e : expr) : value =
       let env' = Env.add name clos env in
       eval_expr env' body
     end
-  | Match _ ->
-    assert false
+  | Match (scrutinee, branches) ->
+    let v = eval_expr env scrutinee in
+    let rec try_branches bs =
+      match bs with
+      | [] -> raise (Match_fail e.pos)
+      | (p, branch_e) :: rest ->
+        begin match match_pattern p v with
+        | None -> try_branches rest
+        | Some pat_env ->
+          let env' = Env.union (fun _ v _ -> Some v) pat_env env in
+          eval_expr env' branch_e
+        end
+    in
+    try_branches branches
 
 let eval (p : prog) : value =
   let rec go env v p =
