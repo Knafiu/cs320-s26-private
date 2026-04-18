@@ -234,9 +234,8 @@ let rec type_of_expr (ctxt : ctxt) (e : expr) : (ty, Error_msg.t) result =
         else if t2 <> TInt then Error (exp_ty e2.pos t2 TInt)
         else Ok TInt
     | Eq | Neq | Lt | Lte | Gt | Gte ->
-        if t1 <> t2 then Error (exp_ty e2.pos t2 t1)
-        else if comparable_ty t1 then Ok TBool
-        else Error (exp_ty e1.pos t1 TUnit)
+        if t1 = t2 then Ok TBool
+        else Error (exp_ty e2.pos t2 t1)
     | And | Or ->
         if t1 <> TBool then Error (exp_ty e1.pos t1 TBool)
         else if t2 <> TBool then Error (exp_ty e2.pos t2 TBool)
@@ -270,7 +269,7 @@ let rec type_of_expr (ctxt : ctxt) (e : expr) : (ty, Error_msg.t) result =
               then go original_ty out_ty rest
               else Error (exp_ty arg_expr.pos arg_ty param_ty)
           | _ ->
-              Error (too_many_args fn.pos original_ty)
+            Error (too_many_args e.pos original_ty)
           end
     in
     begin match args with
