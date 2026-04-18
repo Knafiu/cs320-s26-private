@@ -284,64 +284,71 @@ let rec type_of_expr (ctxt : ctxt) (e : expr) : (ty, Error_msg.t) result =
     apply_fun_ty fn_ty arg_tys false
   | Let {is_rec; name; args; annot; binding; body} ->
     if is_rec then
-      match args, annot with
-      | [], _ -> Error (missing_rec_arg e.pos)
-      | _, None -> Error (missing_rec_annot e.pos)
-      | _, Some out_ty ->
-        let fn_ty = mk_fun_ty args out_ty in
-        let binding_ctxt =
-          ctxt
-          |> Env.add name fn_ty
-          |> fun c -> add_args_to_ctxt c args
-        in
-        let* binding_ty = type_of_expr binding_ctxt binding in
-        if binding_ty = out_ty
-        then type_of_expr (Env.add name fn_ty ctxt) body
-        else Error (exp_ty binding.pos binding_ty out_ty)
+      begin
+        match args, annot with
+        | [], _ -> Error (missing_rec_arg e.pos)
+        | _, None -> Error (missing_rec_annot e.pos)
+        | _, Some out_ty ->
+            let fn_ty = mk_fun_ty args out_ty in
+            let binding_ctxt =
+              ctxt
+              |> Env.add name fn_ty
+              |> fun c -> add_args_to_ctxt c args
+            in
+            let* binding_ty = type_of_expr binding_ctxt binding in
+            if binding_ty = out_ty
+            then type_of_expr (Env.add name fn_ty ctxt) body
+            else Error (exp_ty binding.pos binding_ty out_ty)
+      end
     else
-      match args with
-      | [] ->
-        let* binding_ty = type_of_expr ctxt binding in
-        let declared_ty =
-          match annot with
-          | None -> Ok binding_ty
-          | Some t ->
-            if t = binding_ty then Ok t else Error (exp_ty binding.pos binding_ty t)
-        in
-        let* declared_ty = declared_ty in
-        type_of_expr (Env.add name declared_ty ctxt) body
-      | _ ->
-        let binding_ctxt = add_args_to_ctxt ctxt args in
-        let* inferred_out_ty = type_of_expr binding_ctxt binding in
-        let out_ty =
-          match annot with
-          | None -> Ok inferred_out_ty
-          | Some t ->
-            if t = inferred_out_ty then Ok t else Error (exp_ty binding.pos inferred_out_ty t)
-        in
-        let* out_ty = out_ty in
-        let fn_ty = mk_fun_ty args out_ty in
-        type_of_expr (Env.add name fn_ty ctxt) body
+      begin
+        match args with
+        | [] ->
+            let* binding_ty = type_of_expr ctxt binding in
+            let declared_ty =
+              match annot with
+              | None -> Ok binding_ty
+              | Some t ->
+                  if t = binding_ty then Ok t
+                  else Error (exp_ty binding.pos binding_ty t)
+            in
+            let* declared_ty = declared_ty in
+            type_of_expr (Env.add name declared_ty ctxt) body
+        | _ ->
+            let binding_ctxt = add_args_to_ctxt ctxt args in
+            let* inferred_out_ty = type_of_expr binding_ctxt binding in
+            let out_ty =
+              match annot with
+              | None -> Ok inferred_out_ty
+              | Some t ->
+                  if t = inferred_out_ty then Ok t
+                  else Error (exp_ty binding.pos inferred_out_ty t)
+            in
+            let* out_ty = out_ty in
+            let fn_ty = mk_fun_ty args out_ty in
+            type_of_expr (Env.add name fn_ty ctxt) body
+      end
 
 | Match (scrutinee, branches) ->
     let* scrut_ty = type_of_expr ctxt scrutinee in
-    begin match branches with
-    | [] -> assert false
-    | (p1, e1) :: rest ->
-      let* pat_ctxt1 = type_pattern Env.empty p1 scrut_ty in
-      let ctxt1 = Env.union (fun _ _ new_t -> Some new_t) ctxt pat_ctxt1 in
-      let* branch_ty = type_of_expr ctxt1 e1 in
-      let rec check_rest bs =
-        match bs with
-        | [] -> Ok branch_ty
-        | (p, branch_e) :: tl ->
-          let* pat_ctxt = type_pattern Env.empty p scrut_ty in
-          let branch_ctxt = Env.union (fun _ _ new_t -> Some new_t) ctxt pat_ctxt in
-          let* this_ty = type_of_expr branch_ctxt branch_e in
-          if this_ty = branch_ty then check_rest tl
-          else Error (exp_ty branch_e.pos this_ty branch_ty)
-      in
-      check_rest rest
+    begin
+      match branches with
+      | [] -> assert false
+      | (p1, e1) :: rest ->
+          let* pat_ctxt1 = type_pattern Env.empty p1 scrut_ty in
+          let ctxt1 = Env.union (fun _ _ new_t -> Some new_t) ctxt pat_ctxt1 in
+          let* branch_ty = type_of_expr ctxt1 e1 in
+          let rec check_rest bs =
+            match bs with
+            | [] -> Ok branch_ty
+            | (p, branch_e) :: tl ->
+                let* pat_ctxt = type_pattern Env.empty p scrut_ty in
+                let branch_ctxt = Env.union (fun _ _ new_t -> Some new_t) ctxt pat_ctxt in
+                let* this_ty = type_of_expr branch_ctxt branch_e in
+                if this_ty = branch_ty then check_rest tl
+                else Error (exp_ty branch_e.pos this_ty branch_ty)
+          in
+          check_rest rest
     end
 
 let type_of (p : prog) : (ty, Error_msg.t) result =
