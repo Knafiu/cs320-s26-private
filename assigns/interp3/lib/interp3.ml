@@ -163,6 +163,7 @@ type constr = ty * ty
 let fresh () = TParam (_gensym ())
 
 let type_of_expr (ctxt : ctxt) (e : expr) : (ty_scheme, Error_msg.t) result =
+  let ( let* ) = Result.bind in
   let rec apply_subst subst ty =
     match ty with
     | TParam a ->
