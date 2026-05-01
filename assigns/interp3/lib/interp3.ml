@@ -394,6 +394,42 @@ exception Match_fail of pos
 exception Compare_fun_val of pos
 
 let eval_expr (env : dyn_env) (e : Ast.Expr.t) : value =
+  let rec pattern_match v p =
+    match v, p.pattern with
+    | _, PWild -> Some Env.empty
+    | _, PVar x -> Some (Env.add x v Env.empty)
+
+    | VUnit, PUnit -> Some Env.empty
+    | VBool b1, PBool b2 when b1 = b2 -> Some Env.empty
+    | VInt n1, PInt n2 when n1 = n2 -> Some Env.empty
+    | VString s1, PString s2 when s1 = s2 -> Some Env.empty
+
+    | VTuple vs, PTuple ps ->
+      if List.length vs = List.length ps then
+        let rec loop vs ps =
+          match vs, ps with
+          | [], [] -> Some Env.empty
+          | v :: vs, p :: ps ->
+            begin
+              match pattern_match v p, loop vs ps with
+              | Some env1, Some env2 ->
+                Some (Env.union (fun _ a _ -> Some a) env1 env2)
+              | _ -> None
+            end
+          | _ -> None
+        in
+        loop vs ps
+      else None
+
+    | VCons (c1, None), PCons (c2, None) when c1 = c2 ->
+      Some Env.empty
+
+    | VCons (c1, Some v), PCons (c2, Some p) when c1 = c2 ->
+      pattern_match v p
+
+    | _ -> None
+  in
+
   let rec eval env e =
     match e.expr with
     | Unit -> VUnit
@@ -402,39 +438,40 @@ let eval_expr (env : dyn_env) (e : Ast.Expr.t) : value =
     | String s -> VString s
 
     | Negate e1 ->
-      begin
-        match eval env e1 with
-        | VInt n -> VInt (-n)
-        | _ -> assert false
+      begin match eval env e1 with
+      | VInt n -> VInt (-n)
+      | _ -> assert false
       end
 
-    | Bop(op,e1,e2) ->
+    | Bop (op, e1, e2) ->
       begin match op with
       | And ->
         begin match eval env e1 with
-        | VBool b -> if b then eval env e2 else VBool false
+        | VBool false -> VBool false
+        | VBool true -> eval env e2
         | _ -> assert false
         end
 
       | Or ->
         begin match eval env e1 with
-        | VBool b -> if b then VBool true else eval env e2
+        | VBool true -> VBool true
+        | VBool false -> eval env e2
         | _ -> assert false
         end
 
-      | Add|Sub|Mul|Div|Mod ->
+      | Add | Sub | Mul | Div | Mod ->
         begin match eval env e1, eval env e2 with
         | VInt n1, VInt n2 ->
           begin match op with
-          | Add -> VInt(n1+n2)
-          | Sub -> VInt(n1-n2)
-          | Mul -> VInt(n1*n2)
+          | Add -> VInt (n1 + n2)
+          | Sub -> VInt (n1 - n2)
+          | Mul -> VInt (n1 * n2)
           | Div ->
-            if n2=0 then raise(Div_by_zero e.pos)
-            else VInt(n1/n2)
+            if n2 = 0 then raise (Div_by_zero e.pos)
+            else VInt (n1 / n2)
           | Mod ->
-            if n2=0 then raise(Div_by_zero e.pos)
-            else VInt(n1 mod n2)
+            if n2 = 0 then raise (Div_by_zero e.pos)
+            else VInt (n1 mod n2)
           | _ -> assert false
           end
         | _ -> assert false
@@ -454,39 +491,87 @@ let eval_expr (env : dyn_env) (e : Ast.Expr.t) : value =
       | Gte -> VBool (eval env e1 >= eval env e2)
       end
 
-    | If(e1,e2,e3) ->
+    | If (e1, e2, e3) ->
       begin match eval env e1 with
-      | VBool b -> if b then eval env e2 else eval env e3
+      | VBool true -> eval env e2
+      | VBool false -> eval env e3
+      | _ -> assert false
+      end
+
+    | Annot (e1, _) -> eval env e1
+
+    | Tuple es ->
+      VTuple (List.map (eval env) es)
+
+    | Assert e1 ->
+      begin match eval env e1 with
+      | VBool true -> VUnit
+      | VBool false -> raise (Assert_fail e.pos)
       | _ -> assert false
       end
 
     | Var x -> Env.find x env
 
-    | Fun((x,_),body) ->
-      VClos {env; name=None; arg=x; body}
+    | Cons (name, None) ->
+      VCons (name, None)
 
-    | App(e1,e2) ->
+    | Cons (name, Some e1) ->
+      VCons (name, Some (eval env e1))
+
+    | Fun ((x, _), body) ->
+      VClos { env; name = None; arg = x; body }
+
+    | App (e1, e2) ->
       let f = eval env e1 in
       let v = eval env e2 in
       begin match f with
-      | VClos {env; arg; body; _} ->
-        eval (Env.add arg v env) body
+      | VClos { arg = "$print_endline"; _ } ->
+        begin match v with
+        | VString s ->
+          print_endline s;
+          VUnit
+        | _ -> assert false
+        end
+
+      | VClos { env = clos_env; name = None; arg; body } ->
+        eval (Env.add arg v clos_env) body
+
+      | VClos ({ env = clos_env; name = Some f_name; arg; body } as clos) ->
+        let env1 = Env.add f_name (VClos clos) clos_env in
+        let env2 = Env.add arg v env1 in
+        eval env2 body
+
       | _ -> assert false
       end
 
-    | Let{is_rec;name;binding;body} ->
+    | Let { is_rec; name; binding; body } ->
       if is_rec then
-        begin match eval env binding with
-        | VClos clos ->
-          let env = Env.add name (VClos {clos with name=Some name}) env in
-          eval env body
+        begin match binding.expr with
+        | Fun ((arg, _), fun_body) ->
+          let clos = VClos { env; name = Some name; arg; body = fun_body } in
+          eval (Env.add name clos env) body
         | _ -> assert false
         end
       else
         let v = eval env binding in
         eval (Env.add name v env) body
 
-    | _ -> VUnit
+    | Match (e1, branches) ->
+      let v = eval env e1 in
+      let rec try_branches branches =
+        match branches with
+        | [] -> raise (Match_fail e.pos)
+        | (pat, branch_expr) :: rest ->
+          begin match pattern_match v pat with
+          | Some pat_env ->
+            let new_env =
+              Env.union (fun _ pattern_value _ -> Some pattern_value) pat_env env
+            in
+            eval new_env branch_expr
+          | None -> try_branches rest
+          end
+      in
+      try_branches branches
   in
   eval env e
 
