@@ -66,16 +66,16 @@ details.
 |------+---------------------------------------------+------------------------+------------------------------------------|
 | 4/13 | Lab 11: Pattern Matching Worksheet          |                        |                                          |
 | 4/14 | Hindley-Milner                              | OCP [[https://cs3110.github.io/textbook/chapters/interp/inference.html][10.6]]               |                                          |
-| 4/16 | Unification (Workshop)                      | OCP [[https://cs3110.github.io/textbook/chapters/interp/inference.html][10.6]]               | MP3 out, MP2 due                         |
+| 4/16 | Unification (Workshop)                      | OCP [[https://cs3110.github.io/textbook/chapters/interp/inference.html][10.6]]               | [[file:assigns/interp3/interp3.org][MP3]] out, MP2 due                         |
 |------+---------------------------------------------+------------------------+------------------------------------------|
 | 4/20 | *No Lab*                                    |                        | Patriots’ Day                            |
-| 4/21 | Principle Types                             | OCP [[https://cs3110.github.io/textbook/chapters/interp/inference.html][10.6]]               |                                          |
-| 4/22 | Lab 12: Principle Types Worksheet           |                        |                                          |
+| 4/21 | Principal Types                             | OCP [[https://cs3110.github.io/textbook/chapters/interp/inference.html][10.6]]               |                                          |
+| 4/22 | Lab 12: Principal Types Worksheet           |                        |                                          |
 | 4/23 | Specialization                              | OCP [[https://cs3110.github.io/textbook/chapters/interp/inference.html][10.6]]               | MP3 check-in due                         |
 |------+---------------------------------------------+------------------------+------------------------------------------|
-| 4/27 | Lab 13: Final Exam Review                   |                        |                                          |
+| 4/27 | Lab 13: Final Exam Review                   |                        | [[file:final/final-exam-f25.pdf][Fall 2025 Final Exam]]                     |
 | 4/28 | Bytecode Interpreters                       |                        |                                          |
-| 4/30 | Final Exam Review Session (Workshop)        |                        | MP3 due                                  |
+| 4/30 | Final Exam Review Session (Workshop)        |                        | MP3 due, [[file:final/topics.org][Final Exam Prep Material]]        |
 |------+---------------------------------------------+------------------------+------------------------------------------|
 * Calendar
 #+begin_export html
