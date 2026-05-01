@@ -402,39 +402,49 @@ let eval_expr (env : dyn_env) (e : Ast.Expr.t) : value =
     | String s -> VString s
 
     | Negate e1 ->
-      let VInt n = eval env e1 in
-      VInt (-n)
+      begin
+        match eval env e1 with
+        | VInt n -> VInt (-n)
+        | _ -> assert false
+      end
 
     | Bop(op,e1,e2) ->
       begin match op with
       | And ->
-        let VBool b = eval env e1 in
-        if b then eval env e2 else VBool false
+        begin match eval env e1 with
+        | VBool b -> if b then eval env e2 else VBool false
+        | _ -> assert false
+        end
 
       | Or ->
-        let VBool b = eval env e1 in
-        if b then VBool true else eval env e2
+        begin match eval env e1 with
+        | VBool b -> if b then VBool true else eval env e2
+        | _ -> assert false
+        end
 
       | Add|Sub|Mul|Div|Mod ->
-        let VInt n1 = eval env e1 in
-        let VInt n2 = eval env e2 in
-        begin match op with
-        | Add -> VInt(n1+n2)
-        | Sub -> VInt(n1-n2)
-        | Mul -> VInt(n1*n2)
-        | Div ->
-          if n2=0 then raise(Div_by_zero e.pos)
-          else VInt(n1/n2)
-        | Mod ->
-          if n2=0 then raise(Div_by_zero e.pos)
-          else VInt(n1 mod n2)
+        begin match eval env e1, eval env e2 with
+        | VInt n1, VInt n2 ->
+          begin match op with
+          | Add -> VInt(n1+n2)
+          | Sub -> VInt(n1-n2)
+          | Mul -> VInt(n1*n2)
+          | Div ->
+            if n2=0 then raise(Div_by_zero e.pos)
+            else VInt(n1/n2)
+          | Mod ->
+            if n2=0 then raise(Div_by_zero e.pos)
+            else VInt(n1 mod n2)
+          | _ -> assert false
+          end
         | _ -> assert false
         end
 
       | Concat ->
-        let VString s1 = eval env e1 in
-        let VString s2 = eval env e2 in
-        VString (s1 ^ s2)
+        begin match eval env e1, eval env e2 with
+        | VString s1, VString s2 -> VString (s1 ^ s2)
+        | _ -> assert false
+        end
 
       | Eq -> VBool (eval env e1 = eval env e2)
       | Neq -> VBool (eval env e1 <> eval env e2)
@@ -445,8 +455,10 @@ let eval_expr (env : dyn_env) (e : Ast.Expr.t) : value =
       end
 
     | If(e1,e2,e3) ->
-      let VBool b = eval env e1 in
-      if b then eval env e2 else eval env e3
+      begin match eval env e1 with
+      | VBool b -> if b then eval env e2 else eval env e3
+      | _ -> assert false
+      end
 
     | Var x -> Env.find x env
 
@@ -464,9 +476,12 @@ let eval_expr (env : dyn_env) (e : Ast.Expr.t) : value =
 
     | Let{is_rec;name;binding;body} ->
       if is_rec then
-        let VClos clos = eval env binding in
-        let env = Env.add name (VClos {clos with name=Some name}) env in
-        eval env body
+        begin match eval env binding with
+        | VClos clos ->
+          let env = Env.add name (VClos {clos with name=Some name}) env in
+          eval env body
+        | _ -> assert false
+        end
       else
         let v = eval env binding in
         eval (Env.add name v env) body
