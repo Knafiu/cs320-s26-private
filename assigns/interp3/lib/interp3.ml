@@ -164,6 +164,15 @@ let fresh () = TParam (_gensym ())
 
 let type_of_expr (ctxt : ctxt) (e : expr) : (ty_scheme, Error_msg.t) result =
   let ( let* ) = Result.bind in
+
+  let rec remove_dups xs =
+    match xs with
+    | [] -> []
+    | x :: rest ->
+      if List.mem x rest then remove_dups rest
+      else x :: remove_dups rest
+  in
+
   let rec apply_subst subst ty =
     match ty with
     | TParam a ->
@@ -172,7 +181,7 @@ let type_of_expr (ctxt : ctxt) (e : expr) : (ty_scheme, Error_msg.t) result =
       | None -> ty
       end
     | TTuple ts -> TTuple (List.map (apply_subst subst) ts)
-    | TAdt (ts, n) -> TAdt (List.map (apply_subst subst) ts, n)
+    | TAdt (ts, name) -> TAdt (List.map (apply_subst subst) ts, name)
     | TFun (t1, t2) -> TFun (apply_subst subst t1, apply_subst subst t2)
     | _ -> ty
   in
@@ -185,51 +194,113 @@ let type_of_expr (ctxt : ctxt) (e : expr) : (ty_scheme, Error_msg.t) result =
     | _ -> false
   in
 
-  let bind a t =
-    if t = TParam a then Ok []
-    else if occurs a t then Error dummy_error
-    else Ok [(a, t)]
+  let bind a ty =
+    if ty = TParam a then Ok []
+    else if occurs a ty then Error dummy_error
+    else Ok [(a, ty)]
   in
 
-  let rec unify = function
+  let rec unify cs =
+    match cs with
     | [] -> Ok []
     | (t1, t2) :: rest ->
-      begin
-        match (t1, t2) with
-        | TUnit, TUnit
-        | TBool, TBool
-        | TInt, TInt
-        | TString, TString -> unify rest
+      begin match t1, t2 with
+      | TUnit, TUnit
+      | TBool, TBool
+      | TInt, TInt
+      | TString, TString ->
+        unify rest
 
-        | TParam a, t | t, TParam a ->
-          begin match bind a t with
-          | Error e -> Error e
-          | Ok s1 ->
-            let rest =
-              List.map (fun (x,y) -> (apply_subst s1 x, apply_subst s1 y)) rest
-            in
-            match unify rest with
-            | Error e -> Error e
-            | Ok s2 -> Ok (s1 @ s2)
-          end
+      | TParam a, t | t, TParam a ->
+        let* s1 = bind a t in
+        let rest =
+          List.map
+            (fun (x, y) -> (apply_subst s1 x, apply_subst s1 y))
+            rest
+        in
+        let* s2 = unify rest in
+        Ok (s1 @ s2)
 
-        | TFun(a1,b1), TFun(a2,b2) ->
-          unify ((a1,a2)::(b1,b2)::rest)
+      | TFun (a1, b1), TFun (a2, b2) ->
+        unify ((a1, a2) :: (b1, b2) :: rest)
 
-        | TTuple ts1, TTuple ts2 when List.length ts1 = List.length ts2 ->
+      | TTuple ts1, TTuple ts2 ->
+        if List.length ts1 = List.length ts2 then
           unify (List.combine ts1 ts2 @ rest)
+        else Error dummy_error
 
-        | TAdt(ts1,n1), TAdt(ts2,n2)
-          when n1 = n2 && List.length ts1 = List.length ts2 ->
+      | TAdt (ts1, n1), TAdt (ts2, n2) ->
+        if n1 = n2 && List.length ts1 = List.length ts2 then
           unify (List.combine ts1 ts2 @ rest)
+        else Error dummy_error
 
-        | _ -> Error dummy_error
+      | _ -> Error dummy_error
       end
   in
 
   let instantiate (vars, ty) =
-    let pairs = List.map (fun a -> (a, fresh())) vars in
+    let pairs = List.map (fun a -> (a, fresh ())) vars in
     apply_subst pairs ty
+  in
+
+  let rec infer_pattern ctxt p =
+    match p.pattern with
+    | PWild ->
+      Ok (fresh (), [], Env.empty)
+
+    | PVar x ->
+      let a = fresh () in
+      Ok (a, [], Env.add x ([], a) Env.empty)
+
+    | PUnit ->
+      Ok (TUnit, [], Env.empty)
+
+    | PBool _ ->
+      Ok (TBool, [], Env.empty)
+
+    | PInt _ ->
+      Ok (TInt, [], Env.empty)
+
+    | PString _ ->
+      Ok (TString, [], Env.empty)
+
+    | PTuple ps ->
+      let rec loop ps =
+        match ps with
+        | [] -> Ok ([], [], Env.empty)
+        | p :: rest ->
+          let* (t, c, env1) = infer_pattern ctxt p in
+          let* (ts, cs, env2) = loop rest in
+          let duplicate =
+            Env.exists (fun x _ -> Env.mem x env2) env1
+          in
+          if duplicate then Error (bound_several_times p.pos "")
+          else
+            Ok (t :: ts, c @ cs, Env.union (fun _ a _ -> Some a) env1 env2)
+      in
+      let* (ts, cs, env) = loop ps in
+      Ok (TTuple ts, cs, env)
+
+    | PCons (name, arg_opt) ->
+      begin match Env.find_opt name ctxt with
+      | None -> Error (unknown_cons p.pos name)
+      | Some scheme ->
+        let cons_ty = instantiate scheme in
+        begin match arg_opt, cons_ty with
+        | None, TFun _ ->
+          Error (cons_exp_args p.pos name)
+
+        | None, t ->
+          Ok (t, [], Env.empty)
+
+        | Some pat, TFun (arg_ty, ret_ty) ->
+          let* (pat_ty, cs, env) = infer_pattern ctxt pat in
+          Ok (ret_ty, (pat_ty, arg_ty) :: cs, env)
+
+        | Some _, _ ->
+          Error (cons_exp_no_args p.pos name)
+        end
+      end
   in
 
   let rec infer ctxt e =
@@ -240,72 +311,167 @@ let type_of_expr (ctxt : ctxt) (e : expr) : (ty_scheme, Error_msg.t) result =
     | String _ -> Ok (TString, [])
 
     | Negate e1 ->
-      let* (t,c) = infer ctxt e1 in
-      Ok (TInt, (t,TInt)::c)
+      let* (t, cs) = infer ctxt e1 in
+      Ok (TInt, (t, TInt) :: cs)
 
-    | Bop(op,e1,e2) ->
-      let* (t1,c1) = infer ctxt e1 in
-      let* (t2,c2) = infer ctxt e2 in
+    | Bop (op, e1, e2) ->
+      let* (t1, c1) = infer ctxt e1 in
+      let* (t2, c2) = infer ctxt e2 in
       begin match op with
-      | Add|Sub|Mul|Div|Mod ->
-        Ok (TInt, (t1,TInt)::(t2,TInt)::c1@c2)
-      | And|Or ->
-        Ok (TBool, (t1,TBool)::(t2,TBool)::c1@c2)
+      | Add | Sub | Mul | Div | Mod ->
+        Ok (TInt, (t1, TInt) :: (t2, TInt) :: c1 @ c2)
+      | And | Or ->
+        Ok (TBool, (t1, TBool) :: (t2, TBool) :: c1 @ c2)
       | Concat ->
-        Ok (TString, (t1,TString)::(t2,TString)::c1@c2)
-      | Eq|Neq|Lt|Lte|Gt|Gte ->
-        Ok (TBool, (t1,t2)::c1@c2)
+        Ok (TString, (t1, TString) :: (t2, TString) :: c1 @ c2)
+      | Eq | Neq | Lt | Lte | Gt | Gte ->
+        Ok (TBool, (t1, t2) :: c1 @ c2)
       end
 
-    | If(e1,e2,e3) ->
-      let* (t1,c1) = infer ctxt e1 in
-      let* (t2,c2) = infer ctxt e2 in
-      let* (t3,c3) = infer ctxt e3 in
-      Ok (t2, (t1,TBool)::(t2,t3)::c1@c2@c3)
+    | If (e1, e2, e3) ->
+      let* (t1, c1) = infer ctxt e1 in
+      let* (t2, c2) = infer ctxt e2 in
+      let* (t3, c3) = infer ctxt e3 in
+      Ok (t2, (t1, TBool) :: (t2, t3) :: c1 @ c2 @ c3)
+
+    | Annot (e1, ty) ->
+      let* (t, cs) = infer ctxt e1 in
+      Ok (ty, (t, ty) :: cs)
+
+    | Tuple es ->
+      let rec loop es =
+        match es with
+        | [] -> Ok ([], [])
+        | e :: rest ->
+          let* (t, c) = infer ctxt e in
+          let* (ts, cs) = loop rest in
+          Ok (t :: ts, c @ cs)
+      in
+      let* (ts, cs) = loop es in
+      Ok (TTuple ts, cs)
+
+    | Assert e1 ->
+      begin match e1.expr with
+      | Bool false ->
+        Ok (fresh (), [])
+      | _ ->
+        let* (t, cs) = infer ctxt e1 in
+        Ok (TUnit, (t, TBool) :: cs)
+      end
 
     | Var x ->
       begin match Env.find_opt x ctxt with
-      | Some sch -> Ok (instantiate sch, [])
+      | Some scheme -> Ok (instantiate scheme, [])
       | None -> Error (unknown_var e.pos x)
       end
 
-    | Fun((x,_),body) ->
-      let a = fresh() in
-      let ctxt = Env.add x ([],a) ctxt in
-      let* (t,c) = infer ctxt body in
-      Ok (TFun(a,t), c)
+    | Cons (name, arg_opt) ->
+      begin match Env.find_opt name ctxt with
+      | None -> Error (unknown_cons e.pos name)
+      | Some scheme ->
+        let cons_ty = instantiate scheme in
+        begin match arg_opt, cons_ty with
+        | None, TFun _ ->
+          Error (cons_exp_args e.pos name)
 
-    | App(e1,e2) ->
-      let* (t1,c1) = infer ctxt e1 in
-      let* (t2,c2) = infer ctxt e2 in
-      let a = fresh() in
-      Ok (a, (t1,TFun(t2,a))::c1@c2)
+        | None, t ->
+          Ok (t, [])
 
-    | Let{is_rec;name;binding;body} ->
+        | Some arg_expr, TFun (arg_ty, ret_ty) ->
+          let* (t, cs) = infer ctxt arg_expr in
+          Ok (ret_ty, (t, arg_ty) :: cs)
+
+        | Some _, _ ->
+          Error (cons_exp_no_args e.pos name)
+        end
+      end
+
+    | Fun ((x, ty_opt), body) ->
+      let arg_ty =
+        match ty_opt with
+        | Some ty -> ty
+        | None -> fresh ()
+      in
+      let ctxt2 = Env.add x ([], arg_ty) ctxt in
+      let* (body_ty, cs) = infer ctxt2 body in
+      Ok (TFun (arg_ty, body_ty), cs)
+
+    | App (e1, e2) ->
+      let* (t1, c1) = infer ctxt e1 in
+      let* (t2, c2) = infer ctxt e2 in
+      let result_ty = fresh () in
+      Ok (result_ty, (t1, TFun (t2, result_ty)) :: c1 @ c2)
+
+    | Let { is_rec; name; binding; body } ->
       if is_rec then
-        let a = fresh() in
-        let ctxt1 = Env.add name ([],a) ctxt in
-        let* (t1,c1) = infer ctxt1 binding in
-        let ctxt2 = Env.add name ([],t1) ctxt in
-        let* (t2,c2) = infer ctxt2 body in
-        Ok (t2, (a,t1)::c1@c2)
+        let a = fresh () in
+        let ctxt1 = Env.add name ([], a) ctxt in
+        let* (bind_ty, c1) = infer ctxt1 binding in
+        let ctxt2 = Env.add name ([], bind_ty) ctxt in
+        let* (body_ty, c2) = infer ctxt2 body in
+        Ok (body_ty, (a, bind_ty) :: c1 @ c2)
       else
-        let* (t1,c1) = infer ctxt binding in
-        let ctxt = Env.add name ([],t1) ctxt in
-        let* (t2,c2) = infer ctxt body in
-        Ok (t2, c1@c2)
+        let* (bind_ty, c1) = infer ctxt binding in
+        let ctxt2 = Env.add name ([], bind_ty) ctxt in
+        let* (body_ty, c2) = infer ctxt2 body in
+        Ok (body_ty, c1 @ c2)
 
-    | _ -> Error dummy_error
+    | Match (scrutinee, branches) ->
+      let* (scrut_ty, scrut_cs) = infer ctxt scrutinee in
+      let result_ty = fresh () in
+      let rec loop branches =
+        match branches with
+        | [] -> Ok []
+        | (pat, branch_expr) :: rest ->
+          let* (pat_ty, pat_cs, pat_env) = infer_pattern ctxt pat in
+          let ctxt2 = Env.union (fun _ a _ -> Some a) pat_env ctxt in
+          let* (branch_ty, branch_cs) = infer ctxt2 branch_expr in
+          let* rest_cs = loop rest in
+          Ok ((pat_ty, scrut_ty) :: (branch_ty, result_ty) ::
+              pat_cs @ branch_cs @ rest_cs)
+      in
+      let* cs = loop branches in
+      Ok (result_ty, scrut_cs @ cs)
+  in
+
+  let rec vars_in_order ty =
+    match ty with
+    | TParam a -> [a]
+    | TFun (t1, t2) -> vars_in_order t1 @ vars_in_order t2
+    | TTuple ts | TAdt (ts, _) -> List.concat (List.map vars_in_order ts)
+    | _ -> []
+  in
+
+  let normalize ty =
+    let vars = remove_dups (vars_in_order ty) in
+    let pairs =
+      List.mapi
+        (fun i old_name ->
+          let new_name = String.make 1 (Char.chr (97 + i)) in
+          (old_name, TParam new_name))
+        vars
+    in
+    let ty = apply_subst pairs ty in
+    let params =
+      List.map
+        (fun (_, t) ->
+          match t with
+          | TParam a -> a
+          | _ -> assert false)
+        pairs
+    in
+    (params, ty)
   in
 
   match infer ctxt e with
   | Error e -> Error e
-  | Ok (t,cs) ->
-    match unify cs with
-    | Error _ -> Error (exp_ty e.pos t t)
-    | Ok s ->
-      let t = apply_subst s t in
-      Ok ([], t)
+  | Ok (ty, constraints) ->
+    begin match unify constraints with
+    | Error _ -> Error (exp_ty e.pos ty ty)
+    | Ok subst ->
+      let final_ty = apply_subst subst ty in
+      Ok (normalize final_ty)
+    end
 
 let rec nub l =
   match l with
